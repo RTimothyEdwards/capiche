@@ -1,0 +1,724 @@
+Parasitic capacitance modeling for process metal stackups using FasterCap
+-------------------------------------------------------------------------
+
+Earlier work:
+
+For all initial investigations, see the subdirectory "preliminary".
+
+From 10/3/2022:
+
+See file README.orig, containing results mostly from 12/20/2022
+to 12/24/2022, involving a lot of useful development but with
+incorrect results.  All following text has been updated and
+results corrected, starting from 12/26/2022.
+
+The current directory is for the complete analysis and modeling.
+A python script generates many FasterCap input files, runs
+FasterCap on them, parses the output for the matrix values,
+and generates files of SPICE parameter tables of the sort used
+by SkyWater.
+
+Then another python script reads the SPICE parameter tables and
+generates coefficients for use with magic by curve-fitting.
+The first such script will be used to determine how far off the
+equations being curve-fit are, so that it can be determined if
+the models in magic need to be extended to accurately model the
+parasitics (likely conclusion:  yes).
+
+Since analysis will most likely lead to different modeling in
+magic, final generation of parasitics for the magic tech file
+will be the last part done.
+
+Run scripts:
+-----------------
+build_fc_files_w2.py	Updated (Nov. 26) --- for 2 wire setup
+build_fc_files_w1.py	for 1 wire setup
+build_fc_files_w1sh.py	for 1 wire with shield setup
+build_fc_files_w1n.py	for 1 wire coupling to metal above setup
+(All four scripts corrected for syntax 12/26/2022)
+
+Run-time data:
+-----------------
+metal_stack_sky130A.py	See file comments for description.
+
+By the version 2 script, I settled on a consistent metal stack
+description.  When this was last left off on Nov. 28 (2022),
+the script runs fastercap (reliably) and produces file
+"w2_results.txt", but results have not been run through analysis.
+
+w2_results.txt file columns are:
+(1) wire layer
+(2) substrate type
+(3) wire width
+(4) wire spacing
+(5) capacitance from one wire to substrate
+(6) capacitance between wires
+
+Now need to figure out what geometric setup and analysis are
+required to separate out the information needed.
+
+Picking work back up on Dec. 20 (2022). . .
+
+-------------------------------------------------------------
+1) Get parallel plate capacitance for each layer from existing
+   tables.  This much is known and agreed upon (well, at least
+   within a fairly small error delta).  This is done without
+   Fastercap, but only with direct calculation of (eps0 * K / d).
+
+2) Run same tests with a single wire, obtaining a single result
+   for wire to substrate capacitance (for all substrate types,
+   and at different wire widths).  Subtract off parallel plate
+   capacitance from (1) to obtain maximum fringe capacitance
+   without shielding.  Divide in half to get the fringe cap per
+   side.
+
+	w1_results.txt file columns are:
+	(1) wire layer
+	(2) substrate type
+	(3) wire width
+	(4) capacitance from wire to substrate
+
+3) Existing 2-wire data then yields the effect of substrate
+   shielding of the fringe capacitance (max fringe from (2)
+   minus result for shielded wire to substrate).  Take these
+   results and use to refine the fringe shielding model in
+   magic.
+
+4) Coupling data can be used as-is and modeled to get the two
+   coefficients to plug into magic.  Max fringe per side also
+   goes into magic's coefficients.
+
+5) Now for each single-wire model, add a shielding plane
+   underneath, growing from the simulation edge until the
+   plane extends edge to edge and blocks everything.  That
+   should result in cap-to-substrate and cap-to-shield values
+   that can be used to model the partial shielding to
+   substrate and the layer-to-layer capacitance, and determining
+   whether a more accurate accounting of the halo distance is
+   needed.
+
+	w1sh_results.txt file columns are:
+	(1) wire layer
+	(2) substrate type
+	(3) wire width
+	(4) spacing from wire center to shield edge
+	(5) capacitance from wire to substrate
+	(6) capacitance between wire and shield
+
+6) Do a wire-over-wire test, with a wire underneath of fixed
+   width (instead of a shield), passing from left edge to right
+   edge.  Do this for several wire widths.  Use to check against
+   magic's model of partial fringe assignment.
+
+	w1shw_results.txt file columns are:
+	(1) wire layer
+	(2) substrate type
+	(3) wire width
+	(4) shield wiire width
+	(5) spacing from wire center to shield wire center
+	(6) capacitance from wire to substrate
+	(7) capacitance between wire and shield wire
+
+Work below:
+-------------------------------------------------------------
+(1) Parallel plate cap:
+    Note:  Tables don't differentiate between diffusion and mv-diffusion,
+	   although the metal stackup description indicates a height
+	   difference.  Presumably the height difference is the gate
+	   oxide thickness difference; e.g., the poly sits at the same
+	   height everywhere but the diffusion height determines the
+	   difference between field oxide, low voltage diffusion thin
+	   oxide, and high (medium) voltage diffusion thick oxide.
+	   Tables are assumed to refer to thin oxide diffusion height.
+
+	   There is no height difference between substrate and nwell,
+	   so there are only two columns below.
+	   
+		sub,nw	diff
+	poly	106.13	N/A
+	li	 36.99	55.3	
+	met1	 25.78	33.6
+	met2	 17.5	20.8
+	met3	 12.37	14.2
+	met4	  8.42	 9.41
+	met5	  6.32	 6.88
+
+	The numbers above were lifted from magic's tech file but can
+	be found (at lower precision) in:
+
+	/home/tim/gitsrc/open_pdks/sources/sky130-pdk/libraries/sky130_fd_pr/\
+		latest/models/parameters/typical.spice
+
+	where, e.g., poly-to-sub is "mcp1f_ca_*", li-to-diff is "mcl1d_ca_*",
+	etc. ("f" indicates field oxide, and "d" indicates diffusion).
+
+    To get values for mv-diffusion:
+	Back-calculate difference according to the (1/d) difference in
+	diffusion height.
+
+    Sanity check:  diff    @ 0.3230um
+		   mv-diff @ 0.3152um
+		   --------------------
+			     0.0078um  (78 Angstroms)
+
+    Document ~/gits/skywater-src-nda/docs-src/S8\ Design\ Manual\ revC\ draft.pdf
+	says Gate oxide (equivalent) thicknesses area 32 Angstroms (thin oxide)
+	and 110 Angstroms (thick oxide)---Difference is 78 Angstroms, so this
+	all checks out!
+
+	(FYI, SPICE model of nfet_01v8 has 4.15nm tox, not 3.2nm, and)
+	pfet_01v8 has 4.23nm;  nfet_03v3 has 11.6nm, and pfet_03v3 has 11.75nm.
+	These are "effective" thickness.)
+
+    Therefore, assuming that the dielectric for this calculation is dominated
+	by the K=3.9 FOX and PSG,
+
+		C = K(e0)/d
+
+	Check li on field:	C = 3.9(8.854)/(0.9361 - 0.3230) = 56.32
+	(slightly off, but close)
+				C = 3.9(8.854)/(0.9361 - 0.3152) = 55.61
+	(correcting for the K value, inserting the table value of 55.3
+	 into the first equation yields K = 3.8293:
+		55.3 * (0.9361 - 0.3230) / 8.854 = 3.8293
+	 then plug this into the 2nd equation:
+				C = 3.8293(8.854)/(0.9361 - 0.3152) = 54.61
+
+	(Show your work!)
+        -------------------------------------------------------------
+	li:  	55.3 * (0.9361 - 0.3230) / 8.854 = 3.8293
+		3.8293 * 8.854 / (0.9361 - 0.3152) =  54.61
+	met1:	33.6 * (1.3761 - 0.3230) / 8.854 = 3.9964
+		3.9962 * 8.854 / (1.3761 - 0.3152) =  33.35
+	met2:	20.8 * (2.0061 - 0.3230) / 8.854 = 3.9540
+		3.9540 * 8.854 / (2.0061 - 0.3152) =  20.7
+	met3:	14.2 * (2.7861 - 0.3230) / 8.854 = 3.9503
+		3.9503 * 8.854 / (2.7861 - 0.3152) = 14.16
+	met4:	9.41 * (4.0211 - 0.3230) / 8.854 = 3.9303
+		3.9303 * 8.854 / (4.0211 - 0.3152) = 9.39
+	met5:	6.88 * (5.3711 - 0.3230) / 8.854 = 3.9226
+		3.9226 * 8.854 / (5.3711 - 0.3152) = 6.87
+        -------------------------------------------------------------
+	(For the heck of it, add in the gate cap)
+	poly:   C = 3.9 * 8.854 / (0.3262 - 0.3230) = 10791
+		C = 3.9 * 8.854 / (0.3262 - 0.3152) = 3139.1
+	 
+	New table of values:
+
+		sub,nw	lv-diff	mv-diff
+	poly	106.13	N/A	N/A
+	li	 36.99	55.3	54.6
+	met1	 25.78	33.6	33.4
+	met2	 17.5	20.8	20.7
+	met3	 12.37	14.2	14.2
+	met4	  8.42	 9.41	 9.39
+	met5	  6.32	 6.88	 6.87
+
+   It seems like a better idea to just calculate these.
+
+	If you assume that the fringe capacitance is constant as wire width increases,
+	then the parallel plate capacitance can be found from two 1-wire simulations:
+
+	e.g. poly:  cap(total) = width*cap(area) + cap(fringe)
+		    278.68aF/um = 1.5um*cap(area) + cap(fringe)
+		    89.97aF/um = 0.15um*cap(area) + cap(fringe)
+		    ------------------------------------------
+		    188.71aF/um = 1.35*cap(area)
+		    cap(area) = 139.79aF/um	 (not a very good estimate)
+
+	vs. direct calculation:
+		    cap(area) = 8.854 * 3.9 / 0.3262 = 105.86
+	The number is exact if the K=3.9 is assumed to be rounded;  a value K=3.91
+	yields an exact answer.  Finding the effective K for an entire dielectric stack
+	is 1/C_eff = 1/C_1 + 1/C_2 + 1/C_3 + ...
+	Where each C_i is calculated for the given thickness of the dielectric.
+
+	Created script "calc_parallel.py" which generates these values for each
+	metal stackup (values between each metal and each ground plane conductor).
+	Given that all other values being calculated here are based solely on
+	geometric considerations and not vendor tables, it makes more sense to use
+	these numbers even though they are slightly off from the table values.
+
+   Values used below are all from output file "areacap_results.txt" from the
+   calculated expression (using calc_parallel.py).
+
+-------------------------------------------------------------
+(2) Single wire values:
+	1st result:
+		poly subs 0.1500 1.0663e-10
+	vs. 2-wire
+		poly subs 0.1500 0.2100 7.9059e-11 4.5335e-11
+	or
+		poly subs 0.1500 2.1000 1.0421e-10 2.5354e-12
+
+	That is, 1.0663e-10 total cap to substrate (plate + fringe), no shielding
+		 7.9059e-11 with near-body shielding at 0.21um separation
+		 1.0421e-10 with near-body shielding at 2.10um separation.
+
+	subtract baseline parallel plate cap,  poly = 105.86 (aF/um^2) * 0.15um = 15.88 aF/um
+	or 1.588e-11
+
+	so:  1.0663e-10 - 1.588e-11 = 9.075e-11 for fringe on both sides, or
+	4.5375e-11 maximum fringe on one side, or 45.38 aF/um
+	(compare to value 55.27 in magic tech file)
+
+        -------------
+	Try again with metal3:
+
+	1st result:
+		m3 subs 3.0000 1.1964e-10
+	vs. 2-wire
+		m3 subs 3.0000 0.3000 8.4366e-11 1.7206e-10
+	or
+		m3 subs 3.0000 3.0000 9.8699e-11 3.092e-11
+
+	That is, 1.1964e-10 total cap to substrate (plate + fringe), no shielding
+		 8.4366e-11 with near-body shielding at 0.3um separation
+		 9.8699e-11 with near-body shielding at 3.0um separation
+
+	subtract baseline parallel plate cap, m3 = 13.29 (aF/um^2) * 3um = 39.88 aF/um
+	or 3.988e-11
+
+	(1) Take the 1-wire result (1.1964e-10), multiply by 1e12 to get aF/um = 119.64aF/um
+	(2) Total fringe = 119.64aF/um - 39.88aF/um = 79.76aF/um total fringe.
+	(3) Divide by two for fringe per side:  79.76aF/um / 2 = 39.88 aF/um.
+
+	Compare to the value in magic of 40.99. . .  very close.
+
+
+(2b) The above analyses can be expanded to make the 'conductor' equal to each
+     metal top, which yields results for inter-plate capacitance (in the
+     downward direction only).
+
+    Calculation for metal5-to-poly (0.15um wide poly) result:
+	Baseline parallel plate cap = 7.5349 (aF/um^2) * 1.6um = 12.056 aF/um
+	from areacap list.
+
+	See discussion below for upward inter-plate capacitance for the
+	sanity check from the matrix result.  The discussion below is for
+	downward fringing.
+
+	(1) Take the total coupling between 1.6um wide m5 and poly = 1.18e-10
+	(2) Subtract off the parallel plate cap part:  1.2056e-11. Value is 1.058e-10
+	    total fringe.
+	(3) Divide by two for fringe per side: 5.29e-11 or 52.9 aF/um
+
+	Compare with the value in magic (39.91 aF/um).  Pretty far off, but at least
+	ballpark magnitude.  What about the wider m5 result:
+
+	(1) total coupling = 3.3736e-10
+	(2) parallel plate 7.5349 * 16 = 120.56aF/um.  Subtract -> 2.168e-10
+	(3) Divide by two:  108.4 aF/um (which is off by about a factor of 3, so
+		if wire width is ignored then the result can have a huge error).
+
+    Calculation for metal4-to-metal5 (0.3um wide metal4) result:
+	Baseline parallel plate cap = 70.131 aF/um^2 * 1.6um = 112aF or 1.12e-10
+	Total coupling between m5 and m4 = 2.5279e-10
+	Subtract off parallel plate part = 1.406e-10
+	Divide by two = 7.03e-11 or 70.3aF
+
+	Compare with the value in magic (82.82aF).  Reasonably close.
+
+	For the 16um wide metal 5:
+	Baseline parallel plate cap = 70.131 aF/um^2 * 16um = 1122aF or 1.12e-9
+	Total coupling between m5 and m4 = 1.4366e-09
+	Subtract off parallel plate part = 3.145e-10
+	Divide by two = 1.57e-10 or 157aF (this is a very large effect!)
+
+(2c) The above analyses can be expanded to add a 'conductor' for the
+     bottom of the metal above, yielding results for inter-plate capacitance
+     in the upward direction.
+
+	Analysis done with build_fc_files_w1n.py
+
+    Issue:  The geometry file looks correct but the results fail to have equal
+	off-diagonal values.  Why??
+
+    Calculation for poly-to-metal5 (0.15um wide poly) result:
+	Baseline parallel plate cap = 7.5349 (aF/um^2) * 0.15um = 1.13 aF/um
+	from areacap list.
+
+	Fastercap matrix:	m5	6.072e-10	-9.062e-12
+				poly	-6.9017e-12	1.05901e-10
+
+	Sanity check poly-to-substrate = 1.05901e-10 - 6.9017e-12 = 9.90e-11
+	This is "reasonably" close to the 1.066e-10 value from the single
+	wire result.
+
+	sanity check m5-to-substrate = 6.072e-10 - 9.062e-12 = 5.981e-10 / 80 = 7.5e-12
+		This is "reasonably" close to the 6.7854 value from the areacap list.
+
+	So assuming that this is more or less correct. . .
+
+	(1) Take the total coupling between m5 and poly = 6.902e-12
+	(2) Subtract off the parallel plate cap part:  1.13e-13. Value is 6.79e-12
+	    total fringe.
+	(3) Divide by two for fringe per side: 3.395e-12 or 3.39 aF/um
+
+	Compare with the value in magic (6.49 aF/um).  Pretty far off, but at least
+	ballpark magnitude.  Using the average value give 3.93e aF/um, and using
+	the larger value yields 4.47 aF/um.  Should the larger value be used?
+
+    Calculation for metal4-to-metal5 (0.3um wide metal4) result:
+	Baseline parallel plate cap = 70.131 aF/um^2 * 0.3um = 21aF or 2.104e-11
+	Total coupling between m5 and m4 = 1.127e-10
+	Subtract off parallel plate part = 9.17e-11
+	Divide by two = 4.58e-11 or 45.8aF
+
+	Compare with the value in magic (46.98aF).  Very close.
+
+----------------------------------------------
+    Check last result vs. wire width:
+	
+    Calculation for metal4-to-metal5 (3.0um wide metal4) result:
+	Baseline parallel plate cap = 70.131 aF/um^2 * 3.0um = 210aF or 2.104e-10
+	Total coupling between m5 and m4 = 3.0281e-10
+	Subtract off parallel plate part = 9.24e-11
+	Divide by two = 4.62e-11.
+
+    Those numbers do not change much due to width, but compare against the
+    metal5 results for the downward fringing field above, which differ by
+    factors like three.  Need to figure out how that differs between a
+    wire edge perimeter and the wire end perimeter.
+
+    But at least all the files and calculations above are sufficient for
+    generating all of the numbers in a magic tech file.
+
+----------------------------------------------
+3. Now for the analysis of partial shielding.  For near-body shielding
+   of the fringe, the numbers are in w2_results.txt:
+
+   (1) m3 to substrate:
+	w1_results.txt has m3 (0.3um wide) to substrate = 7.3345e-11
+	w2_results.txt has:
+		3.0	5.756e-11
+		2.7	5.629e-11
+		2.4	5.545e-11
+		2.1	5.413e-11
+		1.8	5.276e-11
+		1.5	5.118e-11
+		1.2	4.962e-11
+		0.9	4.765e-11
+		0.6	4.539e-11
+		0.3	4.271e-11
+	Each of these is a total coupling capacitance.  From areacap_results.txt
+	m3 -> subs = 13.292 aF/um^2 * 0.3um = 3.988 aF/um = 3.988e-12
+	7.3345e-11 - 3.988e-12 = 6.936e-11, /2 = 3.468e-11 or 34.68 aF/um
+	Parallel plate cap + open side fringe = (34.68 + 3.988 =) 3.8666e-11
+	or 38.7 aF/um.  Subtract this to get the fringe capacitance on the
+	single shielded side, and compare to table values:
+			calculated		table
+		inf	3.4634e-11		(2.82e-11 at 9um)
+		3.0	1.8894e-11		1.64e-11 at 3.3um)
+		2.7	1.7624e-11
+		2.4	1.6784e-11
+		2.1	1.5464e-11		1.18e-11
+		1.8	1.4094e-11
+		1.5	1.2514e-11
+		1.2	1.0954e-11		7.0e-12
+		0.9	8.9840e-12
+		0.6	6.7240e-12		3.7e-12
+		0.3	4.0440e-12		1.9e-12
+
+	Whom do you trust?  Anyway, that's how the calculation is done.
+	Also probably useful to check if the sidewall capacitance is
+	equal to the loss of fringe capacitance.
+
+	e.g., m3 @ 0.3um width, 1.2um separation:
+	Fringe cap dropped from 3.4634e-11 to 1.0954e-11, or 2.37e-11
+	Coupling capacitance is 4.90e-11.  Half of that is 2.45e-11.
+	So yes, probably the simpler method is to just take the total
+	fringe and subtract off half the coupling.  Saves the trouble
+	of modeling the near-body effect (or rather, the near-body
+	effect is just the coupling capacitance).
+	
+	Well, that was easy!
+
+4. Now, for the more difficult task of determining the amount of
+   partial fringe coupling onto a wire.
+
+	build_fc_files_w1sh.py  -->
+		fastercap_files/w1sh/<m1>_<m2>_w_<width>_ss_<sep>.lst
+
+	There are convergence problems centered around
+		fastercap_files/w1sh/poly_m5_w_0p15_ss_n1p05.lst
+	These are all specific to m5 and probably indicate something
+	wrong.
+	Yes:  The Y value is wrong (seen this before, I think---due
+	to checking "metal" and not "conductor").  Okay, needed to
+	use "sbase" and not "wbase" for "conductor".
+
+   Now how to interpret results?  Is this even a reasonable test?
+   For most of the data, there are downward fringing fields on one
+   side, overlap capacitance in the middle, and upward fringing
+   fields on the other side.
+
+   Here are some results. . .  metal3 0.3um wide under a
+   metal4 shield (see w1sh_test.py):
+   (1) Areacap only:  m3 to subs = 13.292 aF/um (* 0.3um = 3.99 aF/um)
+   (2) Areacap only:  m3 to m4 = 93.081 aF/um (* 0.3um = 27.92 aF/um)
+   (3) Total upward cap m3 (0.3um width) to m4 (plane) = 125.83 aF/um
+   (4) Total downward cap m3 (0.3um width) to substrate = 73.35 aF/um
+
+   In the shield test: (3) shows up clearly when the m4 shield
+   completely covers the m3.  (4) shows up clearly when the shield is
+   completely absent.  Plot of m3 to m4 coupling looks like it can be
+   well modeled.  But m3 to substrate when completely covered by the
+   shield is 29.0 aF/um.  If one assumes that the parallel plate cap
+   (3.99 aF/um) is unaffected, then the shield has "stolen" fringe
+   cap from the substrate:
+
+	Total fringe m3 to subs (w/o shield) = 73.35 - 3.99 = 69.36 aF/um (34.68 per side)
+	Total fringe m3 to subs (with shield) = 29 - 3.99 = 25 aF/um (12.5 per side)
+				  Difference = 44.35 (22.18 per side)
+	Total fringe m3 to m4 = 125.83 - 27.92 = 97.91 aF/um (48.96 per side)
+	(manual test---take w1n result above and remove the substrate)
+	Total fringe m3 to m4 (no subs) = 153.78 - 27.92 = 125.86 aF/um (62.93 per side)
+
+   Note that upward fringe is modeled with the substrate in place, so
+   any fringe pulled away to the substrate has already been accounted
+   for in that number.
+
+   Possible models of fringe splitting:
+   Ratio of m3-m4 vs. m3-subs = 0.39um vs. 2.79um
+		1/0.39 = 2.56,  1/2.79 = 0.36.   0.36 / 2.56 = 14%
+   Ratio of m3(midpoint)-m4 vs. m3(midpoint)-subs = 0.81um vs. 3.21um
+		1/0.81 = 1.23,  1/3.21 = 0.31.   0.31 / 1.23 = 25%
+   Ratio of m3(bottom)-m4 vs. m3(top)-subs = 1.23um vs. 3.64um
+		1/1.23 = 0.81,  1/3.64=0.27.  0.27 / 0.81 = 33%
+
+   But 12.5 (shielded fringe) / 34.68 (unshielded fringe) = 36%
+       48.96 (shielded fringe) / 62.93 (unshielded fringe) = 78%
+
+   It appears not to be deducible, and therefore probably needs to be
+   an additional parameter to the parasitic model.  But keep investigating.
+   Maybe there's a simple way to derive the split of the fringe cap between
+   two metals in opposite directions.
+
+--------------------------------------------
+Proceeding to run a 2nd detailed test using w1sh with a shield type
+underneath, so that the existing model of fringe distribution can be
+validated.
+
+First, updating all of the scripts to allow each one to take options
+to control the layer types used and the start/stop/step values for
+taking data. (Done)
+
+-------------------------------------------
+Now:  For m3 over m2,  m3 wire width = 1um.
+    build_fc_files_w1.py metal_stack_sky130A.py -metals=m3 -conductors=m2 \
+		-width=1,2,1 -verbose=1 -tolerance=0.001
+    C = 217.75 aF/um --- This gives the single result for an "infinite" m2 shield.
+
+    build_fc_files_w1sh.py metal_stack_sky130A.py -metals=m3 -shields=m2 \
+		-width=1,2,1 -sep=-20,20,0.1 -verbose=1 -tolerance=0.004
+
+    Currently no script to load the result into octave, so need to edit the
+    output file and convert "m3 m2" into "3 2".  Then load into octave and,
+    e.g.,
+		plot(w1sh_results(:,4), w1sh_results(:,7))
+
+    which gives the coupling as the m2 shield underneath is pulled back
+    (-20 is full shielding;  +20 is 19.5um to the left, with the wire
+    fully exposed.)
+
+    Areacap results:  m3->m2 is 88.54 aF/um^2 so 88.54 aF/um for the 1um wire.
+    If total cap for full shield is 217.75, then single-side fringe is
+    64.6 aF/um.
+
+    When the shield is fully underneath the wire but does not extend outward
+    (sep = -0.5), a naive estimate of coupling is plate + one side fringe =
+    88.54 + 64.6 = 153.14 aF/um.
+
+    The actual FasterCap result at sep = -0.5 is 174.0 aF/um which is not
+    too bad (12% off, due to the fact that additional coupling occurs
+    between the vertically aligned sidewalls).  The 153.14 aF/um value is
+    crossed at about sep=-0.2um, or 0.3um inset from the wire edge.
+
+    Plotting from sep=-0.5um to sep=-8um gives the relationship for the
+    total amount of fringe.  Subtract off the baseline of 153.14 aF/um
+    from the Y value, and subtract 0.5 from the X value and negate it;
+    then divide the Y value by 64.6 aF/um to get the fraction of the
+    fringe cap.  Then divide the X value by 8 (used as the halo in the
+    current tech file for magic).  Plot vs. sin((pi/2) * X / 8), and
+    it's clear that this is a very bad model. . .
+
+    The fringe coupling is perfectly modeled by an arctangent:
+
+	C_fringe fraction = (2/pi) * atan((x + 0.35) * 1.45)
+
+    where the 0.35 corresponds to the amount of underlap at which no
+    fringe is coupling*, and 1.45 is a coefficient that needs to be
+    determined from data (can it be related to the magnitude of the
+    fringe?).---Needs calculating for all layers to find any trends.
+    Also needs to consider the wire width.
+
+    *As an added complication, once there's an underlap, then the
+     area cap is getting reduced.  In the above case, the area cap
+     is 88.54 aF/um for the entire 1um wire, so at 0.35um underlap,
+     there's only 57.55 aF/um.
+
+     In other words, subtracting 153.14 for the rest of the cap is
+     only valid to x=-0.5.  Above that, for every delta x = 0.1um,
+     the amount to subtract gets lower by 8.854 aF/um.
+
+     e.g., at x=-0.5, total cap is 174.03, subtract 153.14, fringe is 20.89
+           at x=-0.4, total cap is 169.04, subtract 144.29, fringe is 24.75 
+           at x=-0.3, total cap is 163.11, subtract 135.43, fringe is 27.68
+           at x=-0.2, total cap is 156.46, subtract 126.58, fringe is 29.88
+           at x=-0.1, total cap is 148.49, subtract 117.72, fringe is 30.77
+	   ...
+           at x=+0.1, total cap is 103.87, subtract  64.60, fringe is 39.27
+
+     And this is increasing because it is now counting the upward fringe
+     cap of the shield onto the bottom of the wire, which also has some
+     residual at an underlap.  The superposition of all these effects
+     makes the analysis rather complicated.
+
+     Will take more data and revisit.  Cannot rework the model in magic
+     until there is a way to derive the coefficients, or a place to put
+     them in the tech file.
+    
+-------------------------------------------
+Meanwhile, want to pin down whether the calculation for near-body fringe
+shielding can be replaced by simply subtracting the sidewall capacitance
+from the fringe.  (Then:  Can something similar be done to account for
+the amount of downward fringe lost to a shield above a wire?)
+
+    w1: poly 0.15 to subs = 106.63 aF/um
+    w2: 0.21 sep:  79.06 + 45.33 = 124.39
+	0.42 sep:  83.18 + 25.62 = 108.80
+	0.63 sep:  90.65 + 16.11 = 106.76
+	0.84 sep:  96.38 + 11.59 = 107.97
+	1.05 sep:  99.12 +  8.48 = 107.60
+	1.26 sep: 100.81 +  6.39 = 107.20
+
+    w1: m3 0.3 to subs = 73.345 aF/um
+    w2: 0.30 sep:  42.71 + 143.83 = 186.54
+	0.60 sep:  45.39 +  84.85 = 130.24
+	0.90 sep:  47.65 +  61.34 = 108.99
+	1.20 sep:  49.62 +  48.96 = 98.58
+	2.10 sep:  54.13 +  30.68 = 84.81
+	3.00 sep:  57.56 +  21.83 = 79.39
+
+    Both diverge at close spacing
+
+	Magic's tech file has sidewall = 74 aF/um with 0.4um offset for m3
+					 16 aF/um with no offset for poly.
+
+    Magic's values are adjusted for wide wires and indicate a rather
+    high error for narrow wires.  Regardless, this doesn't appear to
+    justify determing fringe shielding by subtracting off sidewall.
+  
+    Redo the m3 table above for single-side fringe:
+
+    w1: m3 0.3 to subs = 38.666 aF/um
+    w2: 0.30 sep:  4.04 (+ 143.83)
+        0.60 sep:  6.72 (+  84.85)
+        0.90 sep:  8.98 (+  61.34)
+        1.20 sep: 10.95 (+  48.96)
+        2.10 sep: 15.46 (+  30.68)
+        3.00 sep: 18.89 (+  21.83) (meaningless relationship?)
+
+    Get detailed data for one case. . .
+
+	build_fc_files_w2.py metal_stack_sky130A.py -metals=m3 -sub=subs \
+		-width=1,2,2 -sep=0.3,15,0.1 -tol=0.004 -file=test.txt
+
+    m3 areacap to subs = 13.292 aF/um^2 (@ 1um width = 13.292 aF/um)
+    maximum total cap from wire to subs ~= 86.0 aF/um
+    1 side fringe = (86.0 - 13.292)/2 = 36.354
+    plate + 1 side fringe = 13.292 + 36.354 = 49.646 aF/um
+
+    This almost exactly follows the relationship
+
+	C_fringe = C_fringe(max) * tanh((sep + 0.5)/6.0)
+
+    Again, there are two coefficients controlling this.  The offset
+    might be equal to the offset needed to get the 1/sep relationship
+    to work for sidewall coupling (it's in a very similar range).
+
+Now it is time to take large amounts of data and get coefficients
+for these equations, then see how these coefficients change for
+different wire widths, since all calculations in magic currently are
+assuming that the values *don't* change with wire width, which is
+definitely wrong, but it is unknown to what degree it's wrong.
+
+Then, finally, try to get a set of equations that correctly compute
+capacitance within a reasonable error bound for all geometries, and
+determine the least number of coefficients needed to capture all
+equations.  If wire width is necessary to be known for all
+calculations, then figure out how to do this efficiently in magic.
+
+-------------------------------------------------------------------
+Summary so far:
+-------------------------------------------------------------------
+
+Basic equations (without adjustments for wire width):
+
+1.  Parallel plate capacitance (aF/um^2) = A
+2.  Sidewall capacitance (aF/um) = B / (sep + C)
+3.  Total fringe capacitance (aF/um) = D
+4.  Fringe capacitance with near-body shielding = D * tanh(E * (sep + F))
+5.  Partial fringe capacitance = D * (2/pi) * atan(G * (x + H))
+
+How to find:
+
+A:    Direct calculation (calc_parallel.py) (results/areacap_results.txt)
+B, C: Use build_fc_files_w2.py (results/w2_results.txt).  For a given wire
+      width (result file 3rd column), get coupling cap (6th column) vs.
+      separation (4th column) and do a curve fit to  B / (sep + C).
+D:    Use build_fc_files_w1.py (results/w1_results.txt).  For a given wire
+      width (result file 3rd column), total cap is value in 4th column.
+      Subtract (A * wire width) and divide the result by 2 to get D (total
+      fringe capacitance per unit length on a single edge).
+E, F: Use build_fc_files_w2.py (results/w2_results.txt).  For a given wire
+      width (result file 3rd column), get total fringe (5th column) vs.
+      separation.  Subtract ((A * wire width) + D) to get the fringe cap
+      on the shielded side only.  Curve fit to D * tanh(E * (sep + F)).
+G, H: Use build_fc_files_w1sh.py (results/w1sh_results.txt).  For a given
+      wire width (result file 3rd column), get coupling cap (7th column)
+      vs. shield edge separation (4th column).  Take -(x + 1/2 wire width)
+      to get shield distance from wire edge, and compute coupling cap
+      minus ((A * wire width) + D) to get amount of fringe coupling to the
+      shield.  Then curve fit to D * (2/pi) * atan(G * (x + H)).
+
+Remaining effects to work in:
+(1) Changes in coefficients above vs. wire width.  Which ones vary most
+    with wire width?
+(2) Sidewall coupling for all metal combinations other than same-metal
+    (including exactly-overlapping or underlapping sidewalls)
+(3) Changes in sidewall coupling with shields (above and below)
+(4) Changes in fringe capacitance with shielding above
+(5) Capacitance to a wire on the other side of a same-plane shield
+
+-------------------------------------------------------------------
+Script "compute_coefficients.py" generates all the parallel plate
+and fringe capacitance coefficients (A and D above).
+
+Need to investigate why fringing from metal 5 is so large.  Based on
+SkyWater tables and the back-of-the envelope calculation of 1.5 the
+upward fringe from metal 4 to metal 5, the m5->m4 fringe should be about 
+83 aF/um.  Instead it is 125, which is 50% too high.  The area cap is
+70.13 aF/um^2, so for a 1.6um wire, the parallel plate cap should be
+112.2 aF/um, so I would expect a total capacitance of 112.2 + 2 * 83 =
+278.  Instead I'm getting 375.
+
+Changing air to a K=6 dielectric, the capacitance drops to around what
+is expected.  So the difference is in the lack of polyimide on top!
+I have been ignoring the fact that the TOPOX is not handled correctly,
+so need to see if that has any significant impact (difference is that
+it goes from 375 to 362, so compared to 278, not a large error, although
+it should be fixed in the code).
+
+Ugh. . . But that means that there are different coefficients for metal 5
+depending on whether the chip is bump bonded or not.  Micross polyimide is
+a K=3.3 dielectric.  With air replaced by a 3.3 dielectric, the total
+capacitance is 285.
+
+(Leave that for now. . . Will probably want a variant in the extraction
+deck for magic to account for it.)
+
+-----------------------------------------------------------------------
+Use least mean squares curve fitting in python (numpy). . .  No
+particular need to invoke octave for this.

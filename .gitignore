@@ -1,0 +1,10 @@
+*.tcl
+*.lst
+*.txt
+*.svg
+*.mag
+*.eps
+*.spice
+*.ext
+__pycache__
+archive

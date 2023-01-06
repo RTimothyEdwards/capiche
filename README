@@ -1,0 +1,52 @@
+capiche:  A system for analyzing foundry metal stackups using FasterCap
+-----------------------------------------------------------------------
+
+Requirements:
+	python3	(with packages numpy, scipy, and matplotlib)
+	FasterCap
+	magic
+	open_pdks (installed for sky130 process)
+
+Usage:
+Run the example using
+
+	./compute_coefficients.py  metal_stack_sky130A.py \
+		/usr/local/share/pdk/sky130A/libs.tech/magic/sky130A.magicrc \
+		-verbose=1
+
+The example command line above assumes that open_pdks has installed
+the SkyWater sky130 PDK in the default location, which is
+/usr/local/share/ (see open_pdks install instructions for more
+information).
+
+This will run for a long time, generating metal wire configurations
+and running them through FasterCap to generate coupling capacitance
+estimations for each geometry.  Once the data files containing all of
+the coupling capacitance tables have been generated, capiche will
+solve for coefficients to analytic solutions of parasitic capacitance,
+and generate plots of the FasterCap results vs. results extracted
+using the program "magic" (https://github.com/RTimothyEdwards/magic)
+and the analytic expressions computed using the calculated coefficients.
+
+Most output is in the form of capacitance tables and SVG format plots.
+
+-----------------------------------------------------------------------
+Author: Tim Edwards
+This is a work in progress.
+Initial version: January 6, 2023
+
+Work to do:
+-----------------------------------------------------------------------
+(0) Add description of output file formats
+(1) Put new analytic expressions into magic (tanh, arctan models)
+(2) Add command in magic to change the halo for parasitic capacitances
+    on the command-line.
+(3) Evaluate and refine models in magic, especially for change in
+    capacitance vs. wire width (which is currently ignored by
+    magic completely;  need to understand the error bound of this
+    approximation).
+(4) Add analysis of coupling across a shield wire to a wire on the
+    other side (another thing that magic ignores).
+(5) Refine sidewall coupling model to include variation with height
+    above substrate or shield plane.
+(6) Add metal stackup for GF180MCU.
