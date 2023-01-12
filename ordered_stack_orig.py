@@ -24,16 +24,13 @@ import subprocess
 # Each layer will have, in an ordered sub-list:
 #	0.  layer name
 #	1.  layer type (1-letter)
-#	2.  associated metal affecting layer
-#	3.  layer bottom height above y=0 with no metal
-#	4.  layer top height above y=0 with no metal
-#	5.  layer top height above y=0 with metal present
-#	6.  layer offset in x direction with metal present
-#	    (or 0 if not applicable)
-#	7.  layer dielectric constant (or 0 if a conductor)
+#	2.  layer height above y=0 over field
+#	3.  layer height above y=0 over wire
+#	4.  layer offset in x direction (or 0 if not applicable)
+#	5.  layer dielectric constant (or 0 if a conductor)
 # --------------------------------------------------------
 
-def ordered_stack(substrate, metals, layers, verbose=0):
+def ordered_stack(substrate, metals, layers):
     pstack = []		# An ordered list, not a dictionary
 
     # First find the appropriate reference plane conductor and
@@ -45,19 +42,19 @@ def ordered_stack(substrate, metals, layers, verbose=0):
     for lname, layer in layers.items():
         if lname == substrate:
             if layer[0] == 'd':
-                lheight = layer[1]
+                pstack.append([lname, 'd', layer[1], layer[1], 0.0, 0])
                 break
             elif layer[0] == 'm':
                 lheight = layer[1] + layer[2]
+                pstack.append([lname, 'd', lheight, lheight, 0.0, 0])
                 break
 
-    pstack.append([lname, 'd', None, lheight, lheight, lheight, 0.0, 0])
-    yref = lheight
+    yref = layer[1]
 
     # Work from bottom to top of the stack.  Stop when there are no more
     # metals.  This is inefficient, but the metal stack is not large.
 
-    while True:
+    while (True):
         # Find the lowest metal higher than yref.
         minmy = 10000
         for lname, layer in layers.items():
@@ -69,16 +66,14 @@ def ordered_stack(substrate, metals, layers, verbose=0):
         if minmy == 10000:
             break
 
-        # Set yref to the metal layer base height
-        ybase = yref = minmy
-
+        # Set yref to the metal layer height
+        yref = minmy
         # The reference width value starts at zero for each planar metal layer
         wref = 0.0
 
         # Diagnostic
-        if verbose > 0:
-            height = "{:.4f}".format(minmy)
-            print('Forming stack:  Reference metal is ' + minmn + ' base height ' + height)
+        # height = "{:.4f}".format(minmy)
+        # print('Forming stack:  Reference metal is ' + minmn + ' height ' + height)
 
         # If this metal layer is used for the wires, then add the metal
         # layer to the list.  Otherwise, just retain the metal layer
@@ -94,28 +89,21 @@ def ordered_stack(substrate, metals, layers, verbose=0):
 
         lname = mlayer[3]
         klayer = layers[lname]
-        pstack.append([lname, 'k', None, ybase, yref, yref, 0.0, klayer[1]])
+        pstack.append([lname, 'k', yref, yref, 0.0, klayer[1]])
 
         if usemetal == True:
             # The reference Y value is now at the top of the metal
             yref += mlayer[2]
 
-            pstack.append([minmn, 'm', None, ybase, yref, yref, 0.0, 0])
+            pstack.append([minmn, 'm', yref, yref, 0.0, 0])
 
-            # If there is a sidewall associated with the metal, then add it.
-            # If the sidewall vertical thickness is nonzero, then recast it
-            # as a conformal dielectric with height zero where there is no
-            # metal.
+            # If there is a sidewall associated with the metal, then add it
             for sname, slayer in layers.items():
                 if slayer[0] == 's':
                     if slayer[4] == minmn:
                         wref += slayer[3]
-                        if slayer[2] == 0:
-                            pstack.append([sname, 's', minmn, ybase,
-					minmy, yref + slayer[2], wref, slayer[1]])
-                        else:
-                            pstack.append([sname, 'c', minmn, ybase,
-					minmy, yref + slayer[2], wref, slayer[1]])
+                        pstack.append([sname, 's', minmy,
+				yref + slayer[2], wref, slayer[1]])
                         yref += slayer[2]
                         break
 
@@ -125,7 +113,7 @@ def ordered_stack(substrate, metals, layers, verbose=0):
                 if sslayer[0] == 's':
                     if sslayer[4] == sname:
                         wref += sslayer[3]
-                        pstack.append([ssname, 'c', minmn, ybase, minmy,
+                        pstack.append([ssname, 'c', minmy,
 				yref + sslayer[2], wref, sslayer[1]])
                         yref += sslayer[2]
                         break
@@ -136,11 +124,9 @@ def ordered_stack(substrate, metals, layers, verbose=0):
                 if clayer[0] == 'c':
                     if clayer[5] == sname:
                         wref += clayer[3]
-                        pstack.append([cname, 'c', minmn, ybase,
-				minmy + clayer[4], yref + clayer[2], wref, clayer[1]])
+                        pstack.append([cname, 'c', minmy + clayer[4],
+				yref + clayer[2], wref, clayer[1]])
                         yref += clayer[2]
-                        ybase += clayer[2]
-                        break
 
             # If there is a conformal dielectric associated with the metal,
             # then add it.
@@ -148,10 +134,9 @@ def ordered_stack(substrate, metals, layers, verbose=0):
                 if clayer[0] == 'c':
                     if clayer[5] == minmn:
                         wref += clayer[3]
-                        pstack.append([cname, 'c', minmn, ybase, minmy + clayer[4],
+                        pstack.append([cname, 'c', minmy + clayer[4],
 				yref + clayer[2], wref, clayer[1]])
                         yref += clayer[2]
-                        ybase += clayer[2]
                         break
 
         else:
@@ -164,9 +149,8 @@ def ordered_stack(substrate, metals, layers, verbose=0):
                         # the reference height.  The width of the layer
                         # is not used because there's no metal here for it
                         # to wrap around.
-                        yref += clayer[4]
-                        ybase += clayer[4]
-                        pstack.append([cname, 'k', minmn, ybase, yref, yref, 0.0, clayer[1]])
+                        yref += clayer[2]
+                        pstack.append([cname, 'k', yref, yref, 0.0, clayer[1]])
                         break
                     else:
                         # Check if the referenced layer is a sidewall
@@ -180,8 +164,8 @@ def ordered_stack(substrate, metals, layers, verbose=0):
                                         matches = True
                                         break
                         if matches:
-                            yref += clayer[4]
-                            pstack.append([cname, 'k', minmn, ybase, yref, yref, 0.0, clayer[1]])
+                            yref += clayer[2]
+                            pstack.append([cname, 'k', yref, yref, 0.0, clayer[1]])
                             break
 
 
@@ -189,7 +173,7 @@ def ordered_stack(substrate, metals, layers, verbose=0):
     for lname, layer in layers.items():
         if layer[0] == 'k':
             if lname == 'air':
-                pstack.append([lname, 'k', minmn, ybase, 'inf', 'inf', wref, 1.0])
+                pstack.append([lname, 'k', 'inf', 'inf', wref, 1.0])
                 break
 
     # Reverse the order so that the list is from top to bottom

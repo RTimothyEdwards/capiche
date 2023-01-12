@@ -4,7 +4,8 @@
 #	Input file for build_fc_files.py.
 #	This describes the metal stack for the sky130A process
 #
-process = 0.15	;# process minimum gate length (for general scaling)
+process = 'sky130A'	# Process name
+feature_size = 0.15	# process minimum gate length (for general scaling)
 
 # Well/substrate is assumed to define Y = 0.
 # All dimension values are in microns

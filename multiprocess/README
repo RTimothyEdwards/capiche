@@ -1,0 +1,6 @@
+Scripts in this directory use the python "multiprocess"
+package to spread the runs of FasterCap across multiple
+threads on a multi-core machine.  However, FasterCap
+already multi-processes the underlying task of the
+field equation solver, so multi-processing the runs
+does not gain much, if anything.

@@ -1,16 +1,15 @@
 #!/usr/bin/env python3
 #
-# build_fc_files_w1n_mp.py --
+# build_fc_files_w1sh_mp.py --
 #
 #	Create FasterCap files to simulate many different
 #	geometries to capture all needed information for
-#	parasitic capacitance modeling.  Version _w1n
-#	represents a single wire over substrate and under
-#	another wire of effectively infinite width, used
-#	to measure the total upward fringe capacitance.
+#	parasitic capacitance modeling.  Version _w1sh
+#	generates output for a single wire on a metal
+#	layer, with a shield plane underneath (or over top).
 #
 # Written by Tim Edwards
-# December 23, 2022
+# December 20, 2022
 #
 import os
 import sys
@@ -19,20 +18,21 @@ import subprocess
 import multiprocessing
 
 # Local files
-from ordered_stack import ordered_2metal_stack
-from generate_geometry import generate_1wire_2plane_file
+from ordered_stack import ordered_stack
+from generate_geometry import generate_one_shielded_wire_file
 
 #--------------------------------------------------------------
 # Usage statement
 #--------------------------------------------------------------
 
 def usage():
-    print('Usage:  build_fc_files_w1n_mp.py <stack_def_file> [options]')
+    print('Usage:  build_fc_files_w1sh_mp.py <stack_def_file> [options]')
     print('  Where [options] may be one or more of:')
-    print('     -metals=<metal>[,...]    (restrict wire type to one or more metals)')
-    print('     -shields=<metal>[,...]   (restrict shield type to one or more metals)')
-    print('     -sub[strate]=<substrate> (substrate type)')
+    print('     -metals=<metal>[,...]  (restrict wire type to one or more metals)')
+    print('     -shields=<metal>[,...] (restrict shield type to one or more metals)')
+    print('     -sub[strate]=<substrate>     (substrate type)')
     print('     -width=<start>,<stop>,<step> (wire width range, in microns)')
+    print('     -sep=<start>,<stop>,<step>   (separation range, in microns)')
     print('     -tol[erance]=<value>         (FasterCap tolerance)')
     print('     -file=<name>                 (output filename for results)')
 
@@ -59,8 +59,12 @@ use_default_width = True
 wstart = 0
 wstop = 0
 wstep = 0
+use_default_sep = True
+sstart = 0
+sstop = 0
+sstep = 0
 substrate = None
-outfile = 'results/w1n_results.txt'
+outfile = 'results/w1sh_results.txt'
 verbose = 0
 tolerance = 0.01
 
@@ -115,6 +119,31 @@ for option in options:
             print('Error:  Wire width step value "' + optstr + '" is not numeric.')
             continue
         use_default_width = False
+    elif tokens[0] == '-sep':
+        rangelist = tokens[1].split(',')
+        if len(rangelist) != 3:
+            print('Error:  Separation needs three comma-separated values')
+            usage()
+            continue
+        optstr = rangelist[0].replace('um','')
+        try:
+            sstart = float(optstr)
+        except:
+            print('Error:  Separation start value "' + optstr + '" is not numeric.')
+            continue
+        optstr = rangelist[1].replace('um','')
+        try:
+            sstop = float(optstr)
+        except:
+            print('Error:  Separation end value "' + optstr + '" is not numeric.')
+            continue
+        optstr = rangelist[2].replace('um','')
+        try:
+           sstep = float(optstr)
+        except:
+            print('Error:  Separation step value "' + optstr + '" is not numeric.')
+            continue
+        use_default_sep = False
     else:
         print('Error:  Unknown option "' + option + '"')
         usage()
@@ -134,8 +163,8 @@ except:
 try:
     process
 except:
-    print('Error:  Metal stack does not define process!')
-    sys.exit(1)
+    print('Warning:  Metal stack does not define process!')
+    process = 'unknown'
 
 try:
     layers
@@ -165,8 +194,6 @@ substrate = None
 for lname, layer in layers.items():
     if layer[0] == 'd':
         substrate = lname
-        # Use only the first defined substrate---this is unimportant
-        # to the calculation of capacitance between metals.
         break
 
 # Check options
@@ -184,8 +211,8 @@ for metal in condlist.copy():
 # Set default values if not specified in options
 
 if metallist == []:
-    print('Using all metals (except topmost) in stackup for set of wire types to test')
-    metallist = metals[:-1]
+    print('Using all metals in stackup for set of wire types to test')
+    metallist = metals
 
 if condlist == []:
     print('Using all metals in stackup for set of shield types to test')
@@ -194,13 +221,13 @@ if condlist == []:
 if verbose > 0:
     print('Simulation parameters:')
     print('   Wire width start = ' + str(wstart) + ', stop = ' + str(wstop) + ', step = ' + str(wstep))
+    print('   Wire separation start = ' + str(sstart) + ', stop = ' + str(sstop) + ', step = ' + str(sstep))
     print('')
 
 filelist = []
 
-# Since this calculation is for fringing fields from a wire upward
-# to a layer above, do this only for metals up to but not including
-# the topmost metal.
+# Make sure the working directory exists
+os.makedirs(process + '/fastercap_files/w1sh', exist_ok=True)
 
 for metal in metallist:
     if use_default_width == True:
@@ -209,89 +236,108 @@ for metal in metallist:
         wstop = 10 * minwidth + 0.5 * minwidth
         wstep = 9 * minwidth
 
-    # "conductors" in this file represents the metal above the
-    # wire structure under test, so reverse the layers and
-    # enumerate all of the metals above this one.
-    if condlist == []:
-        conductors = []
-        for lname, layer in reversed(layers.items()):
-            if lname == metal:
-                break
-            elif layer[0] == 'm':
-                conductors.append(lname)
-    else:
-        conductors = condlist
+    if use_default_sep == True:
+        minsep = limits[metal][1]
+        sstart = -10 * minsep
+        sstop = 10 * minsep + 0.5 * minsep
+        sstep = minsep
 
-    for conductor in conductors:
+    for conductor in condlist:
+
+        # Only look at metal to different metal layers.
+        if conductor == metal:
+            continue
+
         # Generate the stack for this particular combination of
         # reference conductor and metal
-        pstack = ordered_2metal_stack(substrate, metal, conductor, layers)
+        pstack = ordered_stack(substrate, [metal, conductor], layers)
 
         # (Diagnostic) Print out the stack
         if verbose > 0:
-            print('Stackup for metal = ' + metal + ' and reference ' + conductor + ':')
+            print('Stackup for metal = ' + metal + ' coupling to metal ' + conductor + ':')
             for p in pstack:
                 print(str(p))
             print('')
 
-        for width in numpy.arange(wstart, wstop, wstep):
-            wspec = "{:.2f}".format(width).replace('.', 'p')
-            filename = 'fastercap_files/w1n/' + metal + '_' + conductor + '_w_' + wspec + '.lst'
-            generate_1wire_2plane_file(filename, substrate, conductor, metal, width, pstack)
-            filelist.append(filename)
+        for separation in numpy.arange(sstart, sstop, sstep):
+            sspec = "{:.2f}".format(separation).replace('.', 'p').replace('-', 'n')
+            for width in numpy.arange(wstart, wstop, wstep):
+                wspec = "{:.2f}".format(width).replace('.', 'p').replace('-', 'n')
+                filename = process + '/fastercap_files/w1sh/' + metal + '_' + conductor + '_w_' + wspec + '_ss_' + sspec + '.lst'
+                generate_one_shielded_wire_file(filename, substrate, conductor, metal, width, separation, pstack)
+                filelist.append(filename)
 
 #--------------------------------------------------------------
 # Routine for running FasterCap in thread
 #--------------------------------------------------------------
 
 def run_fastercap(file, tolerance):
+    loctol = tolerance
     fastercapexec = '/home/tim/src/FasterCap_6.0.7/FasterCap'
 
-    tolspec = "-a{:.3f}".format(tolerance)
-
     print('Running FasterCap on input file ' + file)
-    try:
-        proc = subprocess.run([fastercapexec, '-b', file, tolspec],
-		stdin = subprocess.DEVNULL,
-		stdout = subprocess.PIPE,
-		stderr = subprocess.PIPE,
-		universal_newlines = True,
-                timeout = 30)
-    except subprocess.TimeoutExpired:
-        # Ignore this result
-        pass
-    else:
-        if proc.stdout:
-            for line in proc.stdout.splitlines():
-                if 'g1_' in line:
-                    g1line = line.split()
-                    g00 = float(g1line[1])
-                    g01 = float(g1line[2])
-                elif 'g2_' in line:
-                    g2line = line.split()
-                    g10 = float(g2line[1])
-                    g11 = float(g2line[2])
-        if proc.stderr:
-            print('Error message output from FasterCap:')
-            for line in proc.stderr.splitlines():
-                print(line)
-            if proc.returncode != 0:
-                print('ERROR:  FasterCap exited with status ' + str(proc.returncode))
-
+    done = False
+    while not done:
+        tolspec = "-a{:.3f}".format(loctol)
+        try:
+            proc = subprocess.run([fastercapexec, '-b', file, tolspec],
+			stdin = subprocess.DEVNULL,
+			stdout = subprocess.PIPE,
+			stderr = subprocess.PIPE,
+			universal_newlines = True,
+                	timeout = 30)
+        except subprocess.TimeoutExpired:
+            if loctol > 0.1:
+                print('ERROR:  Failing with high tolerance;  bailing.')
+                break
+            loctol *= 2
+            if verbose > 0:
+                print('Trying again with tolerance = ' + '{:.3f}'.format(loctol))
         else:
-            # Note:  Where g01 != g10, use the average value.
-            ccoup = -(g01 + g10) / 2.0
-            scoup = "{:.5g}".format(ccoup)
-            print('Result:  Ccoup=' + scoup)
+            done = True
+            if loctol > 0.01:
+                print('WARNING:  High tolerance value (' + tolspec + ') used.')
 
-            # Add to results
-            fileroot = os.path.splitext(file)[0]
-            filename = os.path.split(fileroot)[-1]
-            values = filename.split('_')
-            metal = values[0]
-            conductor = values[1]
-            width = float(values[3].replace('p', '.'))
-            return (metal, conductor, width, ccoup)
+    if proc.stdout:
+        if verbose > 1:
+            print('Diagnostic output from FasterCap:')
+        for line in proc.stdout.splitlines():
+            if verbose > 1:
+                print(line)
+            if 'g1_' in line:
+                g1line = line.split()
+                g00 = float(g1line[1])
+                g01 = float(g1line[2])
+            elif 'g2_' in line:
+                g2line = line.split()
+                g10 = float(g2line[1])
+                g11 = float(g2line[2])
+    if proc.stderr:
+        print('Error message output from FasterCap:')
+        for line in proc.stderr.splitlines():
+            print(line)
+        if proc.returncode != 0:
+            print('ERROR:  FasterCap exited with status ' + str(proc.returncode))
+
+    elif done:
+        msub = g00 + g01
+        csub = g10 + g11
+        ccoup = -(g01 + g10) / 2
+
+        scoup = "{:.5g}".format(ccoup)
+        smsub = "{:.5g}".format(msub)
+        scsub = "{:.5g}".format(csub)
+        print('Result:  Ccoup=' + scoup + '  Ccsub=' + scsub + '  Cmsub=' + smsub)
+
+        # Add to results
+        fileroot = os.path.splitext(file)[0]
+        filename = os.path.split(fileroot)[-1]
+        values = filename.split('_')
+        metal = values[0]
+        conductor = values[1]
+        width = float(values[3].replace('p', '.').replace('n', '-'))
+        sep = float(values[5].replace('p', '.').replace('n', '-'))
+        return (metal, conductor, width, sep, msub, csub, ccoup)
 
     return None
 
@@ -319,7 +365,9 @@ if len(presults) == 0:
     sys.exit(0)
 
 # Make sure the output directory exists
-os.makedirs(os.path.split(outfile)[0], exist_ok=True)
+outdir = os.path.split(outfile)[0]
+if outdir != '':
+    os.makedirs(outdir, exist_ok=True)
 
 print('Results:')
 with open(outfile, 'w') as ofile:
@@ -327,7 +375,10 @@ with open(outfile, 'w') as ofile:
         metal = presult[0]
         conductor = presult[1]
         swidth = "{:.4f}".format(presult[2])
-        scoup = "{:.5g}".format(presult[3])
-        print(metal + ' ' + conductor + ' ' + swidth + ' ' + scoup, file=ofile)
-        print(metal + ' ' + conductor + ' ' + swidth + ' ' + scoup)
+        ssep = "{:.4f}".format(presult[3])
+        smsub = "{:.5g}".format(presult[4])
+        scsub = "{:.5g}".format(presult[5])
+        scoup = "{:.5g}".format(presult[6])
+        print(metal + ' ' + conductor + ' ' + swidth + ' ' + ssep + ' ' + smsub + ' ' + scsub + ' ' + scoup, file=ofile)
+        print(metal + ' ' + conductor + ' ' + swidth + ' ' + ssep + ' ' + smsub + ' ' + scsub + ' ' + scoup)
 

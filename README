@@ -10,7 +10,7 @@ Requirements:
 Usage:
 Run the example using
 
-	./compute_coefficients.py  metal_stack_sky130A.py \
+	./compute_coefficients.py  sky130A/metal_stack_sky130A.py \
 		/usr/local/share/pdk/sky130A/libs.tech/magic/sky130A.magicrc \
 		-verbose=1
 
@@ -19,7 +19,7 @@ the SkyWater sky130 PDK in the default location, which is
 /usr/local/share/ (see open_pdks install instructions for more
 information).
 
-This will run for a long time, generating metal wire configurations
+This will run for a long time*, generating metal wire configurations
 and running them through FasterCap to generate coupling capacitance
 estimations for each geometry.  Once the data files containing all of
 the coupling capacitance tables have been generated, capiche will
@@ -30,10 +30,20 @@ and the analytic expressions computed using the calculated coefficients.
 
 Most output is in the form of capacitance tables and SVG format plots.
 
+* Around 12 hours on a modern 16-core processor, e.g., Intel core-i9
+  Results are saved, so that subsequent runs will not repeat the
+  FasterCap runs if the output files exist.  Most of the time is
+  spent running FasterCap.
+
 -----------------------------------------------------------------------
 Author: Tim Edwards
 This is a work in progress.
 Initial version: January 6, 2023
+Update: January 12, 2023:  Corrected some errors in FasterCap input
+    files, including breaking out separate left and right segments
+    for metal wires that have sidewall dielectric.  Corrected the
+    handling of TOPOX over metal 5 in sky130A, which was previously
+    capturing the sidewall but not the dielectric above the metal.
 
 Work to do:
 -----------------------------------------------------------------------
@@ -50,3 +60,5 @@ Work to do:
 (5) Refine sidewall coupling model to include variation with height
     above substrate or shield plane.
 (6) Add metal stackup for GF180MCU.
+(7) Add a script to create a drawing of each geometry example for
+    reference.

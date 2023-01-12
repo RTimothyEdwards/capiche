@@ -46,7 +46,6 @@
 import os
 import sys
 import numpy
-import subprocess
 try:
     import scipy
 except:
@@ -71,6 +70,18 @@ except:
     print('The matplotlib package is required to display result graphs.')
 else:
     have_matplotlib = True
+
+#--------------------------------------------------------------
+
+from calc_parallel import calc_parallel
+from build_fc_files_w1 import build_fc_files_w1
+from build_fc_files_w1n import build_fc_files_w1n
+from build_fc_files_w1sh import build_fc_files_w1sh
+from build_fc_files_w2 import build_fc_files_w2
+
+from build_mag_files_w1 import build_mag_files_w1
+from build_mag_files_w1sh import build_mag_files_w1sh
+from build_mag_files_w2 import build_mag_files_w2
 
 #--------------------------------------------------------------
 # Usage statement
@@ -103,20 +114,17 @@ def generate_layers(layers):
 # Generate result files for area capacitance
 #--------------------------------------------------------------
 
-def generate_areacap(stackupfile):
-
-    if not os.path.isfile('analysis/areacap/results.txt'):
-        subprocess.run(['calc_parallel.py', stackupfile,
-		'-file=analysis/areacap/results.txt',
-		'-verbose=' + str(verbose)],
-		stdin = subprocess.DEVNULL,
-		stdout = subprocess.DEVNULL)
+def generate_areacap(process, stackupfile, verbose=0):
+    if not os.path.isfile(process + '/analysis/areacap/results.txt'):
+        calc_parallel(stackupfile,
+		process + '/analysis/areacap/results.txt',
+		verbose)
 
 #--------------------------------------------------------------
 # Generate result files for fringe capacitance
 #--------------------------------------------------------------
 
-def generate_fringe(stackupfile, metals, substrates, limits, verbose):
+def generate_fringe(process, stackupfile, metals, substrates, limits, verbose=0):
 
     # Get total capacitance, wire to substrate.  Run the
     # one-wire generator for each set of layers independently,
@@ -124,156 +132,104 @@ def generate_fringe(stackupfile, metals, substrates, limits, verbose):
     # at the wire minimum width and 10 times the minimum width,
     # since both cases are used later in this analysis.
 
+    subverbose = (verbose - 1) if verbose > 0 else 0
+
     for metal in metals:
         minwidth = limits[metal][0]
-        wstart = '{:.2f}'.format(minwidth)
-        wstop = '{:.2f}'.format(11 * minwidth)
-        wstep = '{:.2f}'.format(9 * minwidth)
         for subs in substrates:
             if 'diff' in subs and metal == 'poly':
                 continue
-            if not os.path.isfile('analysis/fringe/' + metal + '_' + subs + '.txt'):
+            if not os.path.isfile(process + '/analysis/fringe/' + metal + '_' + subs + '.txt'):
                 if verbose > 0:
                     print('Finding downward fringe for ' + metal + ' + ' + subs)
-                done = False
-                tolerance = 0.001
-                while not done:
-                    try:
-                        subprocess.run(['build_fc_files_w1.py', stackupfile,
-		    		'-metals=' + metal,
-				'-conductors=' + subs,
-				'-width=' + wstart + ',' + wstop + ',' + wstep,
-				'-tol=' + '{:.3f}'.format(tolerance),
-				'-file=analysis/fringe/' + metal + '_' + subs + '.txt'],
-				stdin = subprocess.DEVNULL,
-				stdout = subprocess.DEVNULL,
-				timeout = 20)
-                    except subprocess.TimeoutExpired:
-                        tolerance *= 2
-                        if verbose > 0:
-                            print('Trying again with tolerance = ' + '{:.3f}'.format(tolerance))
-                    else:
-                        done = True
-                        if tolerance > 0.01:
-                            print('WARNING:  High tolerance value (' + '{:.3f}'.format(tolerance) + ') used.')
+                build_fc_files_w1(stackupfile,
+			[metal],
+			[subs],
+			[minwidth, 10 * minwidth],
+			process + '/analysis/fringe/' + metal + '_' + subs + '.txt',
+			0.001,
+			subverbose)
 
         for idx,cond in enumerate(metals):
             if cond == metal:
                 break
-            if not os.path.isfile('analysis/fringe/' + metal + '_' + cond + '.txt'):
+            if not os.path.isfile(process + '/analysis/fringe/' + metal + '_' + cond + '.txt'):
                 if verbose > 0:
                     print('Finding downward fringe for ' + metal + ' + ' + cond)
-                done = False
-                tolerance = 0.001
-                while not done:
-                    try:
-                        subprocess.run(['build_fc_files_w1.py', stackupfile,
-				'-metals=' + metal,
-				'-conductors=' + cond,
-				'-width=' + wstart + ',' + wstop + ',' + wstep,
-				'-tol=' + '{:.3f}'.format(tolerance),
-				'-file=analysis/fringe/' + metal + '_' + cond + '.txt'],
-				stdin = subprocess.DEVNULL,
-				stdout = subprocess.DEVNULL,
-				timeout = 20)
-                    except subprocess.TimeoutExpired:
-                        tolerance *= 2
-                        if verbose > 0:
-                            print('Trying again with tolerance = ' + '{:.3f}'.format(tolerance))
-                    else:
-                        done = True
-                        if tolerance > 0.01:
-                            print('WARNING:  High tolerance value (' + '{:.3f}'.format(tolerance) + ') used.')
+                build_fc_files_w1(stackupfile,
+			[metal],
+			[cond],
+			[minwidth, 10 * minwidth],
+			process + '/analysis/fringe/' + metal + '_' + cond + '.txt',
+			0.001,
+			subverbose)
     
         for cond in metals[idx+1:]:
-            if not os.path.isfile('analysis/fringe/' + metal + '_' + cond + '.txt'):
+            if not os.path.isfile(process + '/analysis/fringe/' + metal + '_' + cond + '.txt'):
                 if verbose > 0:
                     print('Finding upward fringe for ' + metal + ' + ' + cond)
-                done = False
-                tolerance = 0.001
-                while not done:
-                    try:
-                        subprocess.run(['build_fc_files_w1n.py', stackupfile,
-				'-metals=' + metal,
-				'-shields=' + cond,
-				'-width=' + wstart + ',' + wstop + ',' + wstep,
-				'-tol=' + '{:.3f}'.format(tolerance),
-				'-file=analysis/fringe/' + metal + '_' + cond + '.txt'],
-				stdin = subprocess.DEVNULL,
-				stdout = subprocess.DEVNULL,
-				timeout = 20)
-                    except subprocess.TimeoutExpired:
-                        tolerance *= 2
-                        if verbose > 0:
-                            print('Trying again with tolerance = ' + '{:.3f}'.format(tolerance))
-                    else:
-                        done = True
-                        if tolerance > 0.01:
-                            print('WARNING:  High tolerance value (' + '{:.3f}'.format(tolerance) + ') used.')
+                build_fc_files_w1n(stackupfile,
+			[metal],
+			[cond],
+			[minwidth, 10 * minwidth],
+			process + '/analysis/fringe/' + metal + '_' + cond + '.txt',
+			0.001,
+			subverbose)
 
 #-------------------------------------------------------------------------
 # Generate result files for sidewall capacitance
 #-------------------------------------------------------------------------
 
-def generate_sidewall(stackupfile, metals, substrates, limits, verbose):
+def generate_sidewall(process, stackupfile, metals, substrates, limits, verbose=0):
 
     # NOTE:  To do:  Check result over all substrate and shield types, not
     # just the base substrate.  Some portion of the coupling between the
     # undersides of the wires is lost to the substrate, an effect that
     # increases as the substrate or shield plane gets closer to the wires.
 
+    subverbose = (verbose - 1) if verbose > 0 else 0
     subs = substrates[0]
 
     for metal in metals:
+        # Set width start/stop/step for single run at minimum width
         minwidth = limits[metal][0]
         minsep =   limits[metal][1]
 
-        # Set width start/stop/step for single run at minimum width
-        wstart = '{:.2f}'.format(minwidth)
-        wstop = '{:.2f}'.format(minwidth + 1)
-        wstep = '{:.2f}'.format(1)
-
         # Set separation start/stop/step from minimum step out to 20 microns
         # at 0.25um increments
-        sstart = '{:.2f}'.format(minsep)
-        sstop = '20.0'
-        sstep = '0.25'
+        seps = list(numpy.arange(minsep, 20.0, 0.25))
 
-        if not os.path.isfile('analysis/sidewall/' + metal + '_' + metal + '.txt'):
+        if not os.path.isfile(process + '/analysis/sidewall/' + metal + '_' + metal + '.txt'):
             if verbose > 0:
                 print('Finding sidewall coupling for ' + metal)
-            done = False
-            tolerance = 0.008
-            while not done:
-                try:
-                    subprocess.run(['build_fc_files_w2.py', stackupfile,
-				'-metals=' + metal,
-				'-sub=' + subs,
-				'-width=' + wstart + ',' + wstop + ',' + wstep,
-				'-sep=' + sstart + ',' + sstop + ',' + sstep,
-				'-tol=' + '{:.3f}'.format(tolerance),
-				'-file=analysis/sidewall/' + metal + '_' + metal + '.txt'],
-				stdin = subprocess.DEVNULL,
-				stdout = subprocess.DEVNULL,
-				timeout = 1000)
-                except subprocess.TimeoutExpired:
-                    tolerance *= 2
-                    if verbose > 0:
-                        print('Trying again with tolerance = ' + '{:.3f}'.format(tolerance))
-                else:
-                    done = True
-                    if tolerance > 0.01:
-                        print('WARNING:  High tolerance value (' + '{:.3f}'.format(tolerance) + ') used.')
+            build_fc_files_w2(stackupfile,
+			[metal],
+			[subs],
+			[minwidth],
+			seps,
+			process + '/analysis/sidewall/' + metal + '_' + metal + '.txt',
+			0.008,
+			subverbose)
 
 #-------------------------------------------------------------------------
 # Generate result files for fringe shielding model
 #-------------------------------------------------------------------------
 
-def generate_fringeshield(stackupfile, metals, substrates, limits, verbose):
+def generate_fringeshield(process, stackupfile, metals, substrates, limits, verbose=0):
+
+    subverbose = (verbose - 1) if verbose > 0 else 0
 
     for metal in metals:
         minwidth = limits[metal][0]
         minsep =   limits[metal][1]
+
+        # Set width start/stop/step for single run at 10*minimum width
+        width = minwidth * 10
+        wspec = '{:.3f}'.format(width)
+
+        # Set separation start/stop/step from minimum step out to 20 microns
+        # at 0.25um increments
+        seps = list(numpy.arange(minsep, 10.0, 0.25))
 
         conductors = []
         for conductor in metals.copy():
@@ -284,54 +240,29 @@ def generate_fringeshield(stackupfile, metals, substrates, limits, verbose):
         conductors.extend(substrates)
 
         for conductor in conductors:
-
             # Ignore poly over diff (not a parasitic)
             if 'poly' in metal and 'diff' in conductor:
                 continue
 
-            # Set width start/stop/step for single run at 10*minimum width
-            wstart = '{:.2f}'.format(10*minwidth)
-            wstop = '{:.2f}'.format(10*minwidth + 1)
-            wstep = '{:.2f}'.format(1)
-
-            # Set separation start/stop/step from minimum step out to 20 microns
-            # at 0.25um increments
-            sstart = '{:.2f}'.format(minsep)
-            sstop = '10.0'
-            sstep = '0.25'
-
-            if not os.path.isfile('analysis/fringeshield/' + metal + '_' + conductor + '.txt'):
+            if not os.path.isfile(process + '/analysis/fringeshield/' + metal + '_' + conductor + '.txt'):
                 if verbose > 0:
-                    print('Finding fringe shielding for ' + metal + ' width ' + wstart + ' over ' + conductor)
-                done = False
-                tolerance = 0.001
-                while not done:
-                    try:
-                        subprocess.run(['build_fc_files_w2.py', stackupfile,
-				'-metals=' + metal,
-				'-sub=' + conductor,
-				'-width=' + wstart + ',' + wstop + ',' + wstep,
-				'-sep=' + sstart + ',' + sstop + ',' + sstep,
-				'-tol=' + '{:.3f}'.format(tolerance),
-				'-file=analysis/fringeshield/' + metal + '_' + conductor + '.txt'],
-				stdin = subprocess.DEVNULL,
-				stdout = subprocess.DEVNULL,
-				timeout = 1000)
-                    except subprocess.TimeoutExpired:
-                        tolerance *= 2
-                        if verbose > 0:
-                            print('Trying again with tolerance = ' + '{:.3f}'.format(tolerance))
-                    else:
-                        done = True
-                        if tolerance > 0.01:
-                            print('WARNING:  High tolerance value (' + '{:.3f}'.format(tolerance) + ') used.')
+                    print('Finding fringe shielding for ' + metal + ' width ' + wspec + ' over ' + conductor)
+                build_fc_files_w2(stackupfile,
+			[metal],
+			[conductor],
+			[width],
+			seps,
+			process + '/analysis/fringeshield/' + metal + '_' + conductor + '.txt',
+			0.001,
+			subverbose)
 
 #-------------------------------------------------------------------------
 # Generate result files for partial fringe modeling
 #-------------------------------------------------------------------------
 
-def generate_fringepartial(stackupfile, metals, substrates, limits, verbose):
+def generate_fringepartial(process, stackupfile, metals, substrates, limits, verbose=0):
 
+    subverbose = (verbose - 1) if verbose > 0 else 0
     subs = substrates[0]
 
     for metal in metals:
@@ -346,56 +277,36 @@ def generate_fringepartial(stackupfile, metals, substrates, limits, verbose):
             if 'poly' in metal and 'diff' in conductor:
                 continue
 
-            minwidth = limits[metal][0]
-
             # Set width start/stop/step for single run at minimum width
-            wstart = '{:.2f}'.format(minwidth)
-            wstop = '{:.2f}'.format(minwidth + 1)
-            wstep = '{:.2f}'.format(1)
+            minwidth = limits[metal][0]
 
             # Set separation start/stop/step from wire edge out to 15 microns
             # at 0.25um increments
-            sstart = '{:.2f}'.format(-minwidth / 2)
-            sstop = '-15.0'
-            sstep = '-0.25'
+            seps = list(numpy.arange(-minwidth / 2, -15.0, -0.25))
 
-            if not os.path.isfile('analysis/fringepartial/' + metal + '_' + conductor + '.txt'):
+            if not os.path.isfile(process + '/analysis/fringepartial/' + metal + '_' + conductor + '.txt'):
                 if verbose > 0:
                     print('Finding partial fringe for ' + metal + ' coupling to ' + conductor)
-                done = False
-                tolerance = 0.004
-                while not done:
-                    try:
-                        subprocess.run(['build_fc_files_w1sh.py', stackupfile,
-				'-metals=' + metal,
-				'-shields=' + conductor,
-				'-sub=' + subs,
-				'-width=' + wstart + ',' + wstop + ',' + wstep,
-				'-sep=' + sstart + ',' + sstop + ',' + sstep,
-				'-tol=' + '{:.3f}'.format(tolerance),
-				'-file=analysis/fringepartial/' + metal + '_' + conductor + '.txt'],
-				stdin = subprocess.DEVNULL,
-				stdout = subprocess.DEVNULL,
-				timeout = 1000)
-                    except subprocess.TimeoutExpired:
-                        tolerance *= 2
-                        if verbose > 0:
-                            print('Trying again with tolerance = ' + '{:.3f}'.format(tolerance))
-                    else:
-                        done = True
-                        if tolerance > 0.01:
-                            print('WARNING:  High tolerance value (' + '{:.3f}'.format(tolerance) + ') used.')
+                build_fc_files_w1sh(stackupfile,
+			[metal],
+			[conductor],
+			subs,
+			[minwidth],
+			seps,
+			process + '/analysis/fringepartial/' + metal + '_' + conductor + '.txt',
+			0.001,
+			subverbose)
 
 #-----------------------------------------------------------------------------
 # Get area capacitances by direct calculation (results in areacap_results.txt)
 #-----------------------------------------------------------------------------
 
-def compute_areacap():
+def compute_areacap(process):
     # "areacap" is a dictionary with entry keys "<layer>+<layer>"
     # and value in aF/um^2.
 
     areacap = {}
-    with open('analysis/areacap/results.txt', 'r') as ifile:
+    with open(process + '/analysis/areacap/results.txt', 'r') as ifile:
         for line in ifile.read().splitlines():
             tokens = line.split()
             areacap[tokens[0] + '+' + tokens[1]] = float(tokens[2])
@@ -409,7 +320,7 @@ def compute_areacap():
 # the wire.  The fringe capacitance values are parsed at the given size
 #-----------------------------------------------------------------------------
 
-def compute_fringe(metals, substrates, areacap, size):
+def compute_fringe(process, metals, substrates, areacap, size):
 
     # "fringe" is a dictionary with entry keys "<layer>+<layer>" and value in aF/um.
     fringe = {}
@@ -421,7 +332,7 @@ def compute_fringe(metals, substrates, areacap, size):
         for subs in substrates:
             if 'diff' in subs and metal == 'poly':
                 continue
-            with open('analysis/fringe/' + metal + '_' + subs + '.txt', 'r') as ifile:
+            with open(process + '/analysis/fringe/' + metal + '_' + subs + '.txt', 'r') as ifile:
                 lines = ifile.read().splitlines()
                 for line in lines:
                     tokens = line.split()
@@ -434,7 +345,7 @@ def compute_fringe(metals, substrates, areacap, size):
         for cond in metals:
             if cond == metal:
                 continue
-            with open('analysis/fringe/' + metal + '_' + cond + '.txt', 'r') as ifile:
+            with open(process + '/analysis/fringe/' + metal + '_' + cond + '.txt', 'r') as ifile:
                 lines = ifile.read().splitlines()
                 for line in lines:
                     tokens = line.split()
@@ -446,7 +357,7 @@ def compute_fringe(metals, substrates, areacap, size):
                             platecap = areacap[cond + '+' + metal] * width
                         totalfringe = totalcap - platecap
                         fringe[metal + '+' + cond] = totalfringe / 2
-                        if verbose > 1:
+                        if verbose > 2:
                             print('metal = ' + metal + ' cond = ' + cond + ' totalcap = ' + '{:.3f}'.format(totalcap) + ' platecap = ' + '{:.3f}'.format(platecap) + ' totalfringe = ' + '{:.3f}'.format(totalfringe) + ' fringe = ' + '{:.3f}'.format(fringe[metal + '+' + cond]))
 
     return fringe
@@ -455,7 +366,7 @@ def compute_fringe(metals, substrates, areacap, size):
 # Get coefficients B and C (with curve fitting)
 #-------------------------------------------------------------------------
 
-def compute_sidewall(metals):
+def compute_sidewall(process, metals):
 
     sidewall = {}
 
@@ -467,7 +378,7 @@ def compute_sidewall(metals):
     for metal in metals:
         xdata = []
         ydata = []
-        with open('analysis/sidewall/' + metal + '_' + metal + '.txt', 'r') as ifile:
+        with open(process + '/analysis/sidewall/' + metal + '_' + metal + '.txt', 'r') as ifile:
             cdata = ifile.read()
             for line in cdata.splitlines():
                 tokens = line.split()
@@ -496,7 +407,7 @@ def compute_sidewall(metals):
 # Get coefficients E and F (with curve fitting)
 #-------------------------------------------------------------------------
 
-def compute_fringeshield(metals, substrates, areacap, fringe10):
+def compute_fringeshield(process, metals, substrates, areacap, fringe10):
 
     # More analysis through curve fitting using scipy
     # Fringe capacitance shielding (fraction) fits a curve
@@ -527,7 +438,7 @@ def compute_fringeshield(metals, substrates, areacap, fringe10):
             platecap = areacap[metal + '+' + conductor] * (10 * minwidth)
             totfringe = fringe10[metal + '+' + conductor]
 
-            with open('analysis/fringeshield/' + metal + '_' + conductor + '.txt', 'r') as ifile:
+            with open(process + '/analysis/fringeshield/' + metal + '_' + conductor + '.txt', 'r') as ifile:
                 cdata = ifile.read()
                 for line in cdata.splitlines():
                     tokens = line.split()
@@ -543,10 +454,15 @@ def compute_fringeshield(metals, substrates, areacap, fringe10):
             def func2(x, e, f):
                 return numpy.tanh(e * (x + f))
 
-            params, _ = scipy.optimize.curve_fit(func2, xdata, ydata)
-
-            # Save results.  Value E is unitless and F is in microns.
-            fringeshield[metal + '+' + conductor] = (params[0], params[1])
+            try:
+                params, _ = scipy.optimize.curve_fit(func2, xdata, ydata)
+            except:
+                # Warning:  This works around an issue with running curve fitting that
+                # needs to be investigated.
+                fringeshield[metal + '+' + conductor] = (0, 0)
+            else:
+                # Save results.  Value E is unitless and F is in microns.
+                fringeshield[metal + '+' + conductor] = (params[0], params[1])
 
     return fringeshield
     
@@ -554,7 +470,7 @@ def compute_fringeshield(metals, substrates, areacap, fringe10):
 # Get coefficients G and H (with curve fitting)
 #-------------------------------------------------------------------------
 
-def compute_fringepartial(metals, limits, areacap, fringe):
+def compute_fringepartial(process, metals, limits, areacap, fringe):
 
     fringepartial = {}
 
@@ -575,7 +491,7 @@ def compute_fringepartial(metals, limits, areacap, fringe):
 
             xcdata = []
             ycdata = []
-            with open('analysis/fringepartial/' + metal + '_' + conductor + '.txt', 'r') as ifile:
+            with open(process + '/analysis/fringepartial/' + metal + '_' + conductor + '.txt', 'r') as ifile:
                 cdata = ifile.read()
                 for line in cdata.splitlines():
                     tokens = line.split()
@@ -611,13 +527,15 @@ def compute_fringepartial(metals, limits, areacap, fringe):
 # Validate fringe capacitance in magic
 #--------------------------------------------------------------
 
-def validate_fringe(stackupfile, startupfile, metals, substrates, limits, verbose):
+def validate_fringe(process, stackupfile, startupfile, metals, substrates, limits, verbose=0):
 
     # Get total capacitance, wire to substrate.  Run the
     # one-wire generator for each set of layers independently,
     # and with higher tolerance than the default.  Find values
     # at the wire minimum width and 10 times the minimum width,
     # since both cases are used later in this analysis.
+
+    subverbose = (verbose - 1) if verbose > 0 else 0
 
     for metal in metals:
         minwidth = limits[metal][0]
@@ -627,96 +545,93 @@ def validate_fringe(stackupfile, startupfile, metals, substrates, limits, verbos
         for subs in substrates:
             if 'diff' in subs and metal == 'poly':
                 continue
-            if not os.path.isfile('validate/fringe/' + metal + '_' + subs + '.txt'):
+            if not os.path.isfile(process + '/validate/fringe/' + metal + '_' + subs + '.txt'):
                 if verbose > 0:
                     print('Finding downward fringe for ' + metal + ' + ' + subs)
-                subprocess.run(['build_mag_files_w1.py', stackupfile, startupfile,
-		    		'-metals=' + metal,
-				'-conductors=' + subs,
-				'-width=' + wstart + ',' + wstop + ',' + wstep,
-				'-file=validate/fringe/' + metal + '_' + subs + '.txt'],
-				stdin = subprocess.DEVNULL,
-				stdout = subprocess.DEVNULL,
-				timeout = 20)
+                build_mag_files_w1(stackupfile, startupfile,
+			[metal],
+			[subs],
+			[minwidth, 10 * minwidth],
+			 process + '/validate/fringe/' + metal + '_' + subs + '.txt',
+			subverbose)
 
         for idx,cond in enumerate(metals):
             if cond == metal:
                 break
-            if not os.path.isfile('validate/fringe/' + metal + '_' + cond + '.txt'):
+            if not os.path.isfile(process + '/validate/fringe/' + metal + '_' + cond + '.txt'):
                 if verbose > 0:
                     print('Finding downward fringe for ' + metal + ' + ' + cond)
-                subprocess.run(['build_mag_files_w1.py', stackupfile, startupfile,
-				'-metals=' + metal,
-				'-conductors=' + cond,
-				'-width=' + wstart + ',' + wstop + ',' + wstep,
-				'-file=validate/fringe/' + metal + '_' + cond + '.txt'],
-				stdin = subprocess.DEVNULL,
-				stdout = subprocess.DEVNULL,
-				timeout = 20)
-    
+                build_mag_files_w1(stackupfile, startupfile,
+			[metal],
+			[cond],
+			[minwidth, 10 * minwidth],
+			process + '/validate/fringe/' + metal + '_' + cond + '.txt',
+			subverbose)
+
         for cond in metals[idx+1:]:
-            if not os.path.isfile('validate/fringe/' + metal + '_' + cond + '.txt'):
+            if not os.path.isfile(process + '/validate/fringe/' + metal + '_' + cond + '.txt'):
                 if verbose > 0:
                     print('Finding upward fringe for ' + metal + ' + ' + cond)
-                subprocess.run(['build_mag_files_w1.py', stackupfile, startupfile,
-				'-metals=' + metal,
-				'-conductors=' + cond,
-				'-width=' + wstart + ',' + wstop + ',' + wstep,
-				'-file=validate/fringe/' + metal + '_' + cond + '.txt'],
-				stdin = subprocess.DEVNULL,
-				stdout = subprocess.DEVNULL,
-				timeout = 20)
+                build_mag_files_w1(stackupfile, startupfile,
+			[metal],
+			[cond],
+			[minwidth, 10 * minwidth],
+			process + '/validate/fringe/' + metal + '_' + cond + '.txt',
+			subverbose)
 
 #-------------------------------------------------------------------------
 # Validate sidewall capacitance in magic
 #-------------------------------------------------------------------------
 
-def validate_sidewall(stackupfile, startupfile, metals, substrates, limits, verbose):
+def validate_sidewall(process, stackupfile, startupfile, metals, substrates, limits, verbose=0):
 
     # NOTE:  To do:  Check result over all substrate and shield types, not
     # just the base substrate.  Some portion of the coupling between the
     # undersides of the wires is lost to the substrate, an effect that
     # increases as the substrate or shield plane gets closer to the wires.
 
+    subverbose = (verbose - 1) if verbose > 0 else 0
     subs = substrates[0]
 
     for metal in metals:
+        # Set width start/stop/step for single run at minimum width
         minwidth = limits[metal][0]
         minsep =   limits[metal][1]
 
-        # Set width start/stop/step for single run at minimum width
-        wstart = '{:.2f}'.format(minwidth)
-        wstop = '{:.2f}'.format(minwidth + 1)
-        wstep = '{:.2f}'.format(1)
-
         # Set separation start/stop/step from minimum step out to 20 microns
         # at 0.25um increments
-        sstart = '{:.2f}'.format(minsep)
-        sstop = '20.0'
-        sstep = '0.25'
+        seps = list(numpy.arange(minsep, 20.0, 0.25))
 
-        if not os.path.isfile('validate/sidewall/' + metal + '_' + metal + '.txt'):
+        if not os.path.isfile(process + '/validate/sidewall/' + metal + '_' + metal + '.txt'):
             if verbose > 0:
                 print('Finding sidewall coupling for ' + metal)
-            subprocess.run(['build_mag_files_w2.py', stackupfile, startupfile,
-				'-metals=' + metal,
-				'-sub=' + subs,
-				'-width=' + wstart + ',' + wstop + ',' + wstep,
-				'-sep=' + sstart + ',' + sstop + ',' + sstep,
-				'-file=validate/sidewall/' + metal + '_' + metal + '.txt'],
-				stdin = subprocess.DEVNULL,
-				stdout = subprocess.DEVNULL,
-				timeout = 1000)
+            build_mag_files_w2(stackupfile, startupfile,
+			[metal],
+			[subs],
+			[minwidth],
+			seps,
+			process + '/validate/sidewall/' + metal + '_' + metal + '.txt',
+			subverbose)
 
 #-------------------------------------------------------------------------
 # Validate fringe shielding model in magic
 #-------------------------------------------------------------------------
 
-def validate_fringeshield(stackupfile, startupfile, metals, substrates, limits, verbose):
+def validate_fringeshield(process, stackupfile, startupfile, metals, substrates, limits, verbose=0):
+
+    subverbose = (verbose - 1) if verbose > 0 else 0
 
     for metal in metals:
         minwidth = limits[metal][0]
         minsep =   limits[metal][1]
+
+        # Set width start/stop/step for single run at 10*minimum width
+        width = minwidth * 10
+        wspec = '{:.3f}'.format(width)
+
+        # Set separation start/stop/step from minimum step out to 20 microns
+        # at 0.25um increments
+        seps = list(numpy.arange(minsep, 10.0, 0.25))
 
         conductors = []
         for conductor in metals.copy():
@@ -732,36 +647,24 @@ def validate_fringeshield(stackupfile, startupfile, metals, substrates, limits, 
             if 'poly' in metal and 'diff' in conductor:
                 continue
 
-            # Set width start/stop/step for single run at 10*minimum width
-            wstart = '{:.2f}'.format(10*minwidth)
-            wstop = '{:.2f}'.format(10*minwidth + 1)
-            wstep = '{:.2f}'.format(1)
-
-            # Set separation start/stop/step from minimum step out to 20 microns
-            # at 0.25um increments
-            sstart = '{:.2f}'.format(minsep)
-            sstop = '10.0'
-            sstep = '0.25'
-
-            if not os.path.isfile('validate/fringeshield/' + metal + '_' + conductor + '.txt'):
+            if not os.path.isfile(process + '/validate/fringeshield/' + metal + '_' + conductor + '.txt'):
                 if verbose > 0:
-                    print('Finding fringe shielding for ' + metal + ' width ' + wstart + ' over ' + conductor)
-                subprocess.run(['build_mag_files_w2.py', stackupfile, startupfile,
-				'-metals=' + metal,
-				'-sub=' + conductor,
-				'-width=' + wstart + ',' + wstop + ',' + wstep,
-				'-sep=' + sstart + ',' + sstop + ',' + sstep,
-				'-file=validate/fringeshield/' + metal + '_' + conductor + '.txt'],
-				stdin = subprocess.DEVNULL,
-				stdout = subprocess.DEVNULL,
-				timeout = 1000)
+                    print('Finding fringe shielding for ' + metal + ' width ' + wspec + ' over ' + conductor)
+                build_mag_files_w2(stackupfile, startupfile,
+			[metal],
+			[conductor],
+			[width],
+			seps,
+			process + '/validate/fringeshield/' + metal + '_' + conductor + '.txt',
+			subverbose)
 
 #-------------------------------------------------------------------------
 # Validate partial fringe model in magic
 #-------------------------------------------------------------------------
 
-def validate_fringepartial(stackupfile, startupfile, metals, substrates, limits, verbose):
+def validate_fringepartial(process, stackupfile, startupfile, metals, substrates, limits, verbose=0):
 
+    subverbose = (verbose - 1) if verbose > 0 else 0
     subs = substrates[0]
 
     for metal in metals:
@@ -776,32 +679,24 @@ def validate_fringepartial(stackupfile, startupfile, metals, substrates, limits,
             if 'poly' in metal and 'diff' in conductor:
                 continue
 
+            # Set metal width for single run at minimum width
             minwidth = limits[metal][0]
-
-            # Set width start/stop/step for single run at minimum width
-            wstart = '{:.2f}'.format(minwidth)
-            wstop = '{:.2f}'.format(minwidth + 1)
-            wstep = '{:.2f}'.format(1)
 
             # Set separation start/stop/step from wire edge out to 15 microns
             # at 0.25um increments
-            sstart = '{:.2f}'.format(-minwidth / 2)
-            sstop = '-15.0'
-            sstep = '-0.25'
+            seps = list(numpy.arange(-minwidth / 2, -15.0, -0.25))
 
-            if not os.path.isfile('validate/fringepartial/' + metal + '_' + conductor + '.txt'):
+            if not os.path.isfile(process + '/validate/fringepartial/' + metal + '_' + conductor + '.txt'):
                 if verbose > 0:
                     print('Finding partial fringe for ' + metal + ' coupling to ' + conductor)
-                subprocess.run(['build_mag_files_w1sh.py', stackupfile, startupfile,
-				'-metals=' + metal,
-				'-shields=' + conductor,
-				'-sub=' + subs,
-				'-width=' + wstart + ',' + wstop + ',' + wstep,
-				'-sep=' + sstart + ',' + sstop + ',' + sstep,
-				'-file=validate/fringepartial/' + metal + '_' + conductor + '.txt'],
-				stdin = subprocess.DEVNULL,
-				stdout = subprocess.DEVNULL,
-				timeout = 1000)
+                build_mag_files_w1sh(stackupfile, startupfile,
+			[metal],
+			[conductor],
+                        subs,
+			[minwidth],
+			seps,
+			process + '/validate/fringepartial/' + metal + '_' + conductor + '.txt',
+			subverbose)
 
 #-------------------------------------------------------------------------
 # Print out all results
@@ -965,7 +860,7 @@ def load_coefficients(infile):
 # Plot sidewall capacitance data
 #--------------------------------------------------------------
 
-def plot_sidewall(metal, sidewall):
+def plot_sidewall(process, metal, sidewall):
 
     # Check validity of metal
     try:
@@ -973,8 +868,13 @@ def plot_sidewall(metal, sidewall):
     except:
         return
 
-    infile1 = 'analysis/sidewall/' + metal + '_' + metal + '.txt'
-    infile2 = 'validate/sidewall/' + metal + '_' + metal + '.txt'
+    infile1 = process + '/analysis/sidewall/' + metal + '_' + metal + '.txt'
+    infile2 = process + '/validate/sidewall/' + metal + '_' + metal + '.txt'
+
+    # Allow plots without validation results from magic
+    validated = True
+    if not os.path.isfile(infile2):
+        validated = False
 
     # Get the result from FasterCap
     with open(infile1, 'r') as ifile:
@@ -995,20 +895,21 @@ def plot_sidewall(metal, sidewall):
             ccoup1.append(float(tokens[5]) * 1e12)
 
     # Get the result from magic
-    with open(infile2, 'r') as ifile:
-        lines = ifile.read().splitlines()
-        # Check values from first line and make sure the metal width
-        # agrees for both files
-        tokens = lines[0].split()
+    if validated:
+        with open(infile2, 'r') as ifile:
+            lines = ifile.read().splitlines()
+            # Check values from first line and make sure the metal width
+            # agrees for both files
+            tokens = lines[0].split()
 
-        if width == float(tokens[2]):
             sep2 = []
             ccoup2 = []
-            for line in lines:
-                tokens = line.split()
-                sep2.append(float(tokens[3]))
-                # Convert coupling cap to aF/um
-                ccoup2.append(float(tokens[5]) * 1e12)
+            if abs(width - float(tokens[2])) < 0.01:
+                for line in lines:
+                    tokens = line.split()
+                    sep2.append(float(tokens[3]))
+                    # Convert coupling cap to aF/um
+                    ccoup2.append(float(tokens[5]) * 1e12)
 
     # Compute the analytic sidewall
     swmult = swrec[0]
@@ -1023,7 +924,8 @@ def plot_sidewall(metal, sidewall):
     canvas = FigureCanvasAgg(fig)
     ax = fig.add_subplot(111)
     ax.plot(sep1, ccoup1, label='FasterCap')
-    ax.plot(sep2, ccoup2, label='Magic')
+    if validated:
+        ax.plot(sep2, ccoup2, label='Magic')
     ax.plot(sep1, ctest, label='Analytic')
     ax.set_xlabel('Wire separation (um)')
     ax.set_ylabel('Sidewall capacitance (aF/um)')
@@ -1031,15 +933,15 @@ def plot_sidewall(metal, sidewall):
     legend = ax.legend(loc = 2, bbox_to_anchor = (1.05, 1), borderaxespad=0.)
     ax.set_title(metal + ' sidewall capacitance vs. wire separation')
 
-    os.makedirs('plots/sidewall', exist_ok=True)
-    canvas.print_figure('plots/sidewall/' + metal + '_' + metal + '.svg',
+    os.makedirs(process + '/plots/sidewall', exist_ok=True)
+    canvas.print_figure(process + '/plots/sidewall/' + metal + '_' + metal + '.svg',
 		bbox_inches = 'tight', bbox_extra_artists = [legend])
 
 #--------------------------------------------------------------
 # Plot fringe shielding capacitance data
 #--------------------------------------------------------------
 
-def plot_fringeshield(metal, cond, areacap, fringe, fringeshield):
+def plot_fringeshield(process, metal, cond, areacap, fringe, fringeshield):
 
     # Check if metal + cond combination is valid
     try:
@@ -1047,11 +949,15 @@ def plot_fringeshield(metal, cond, areacap, fringe, fringeshield):
     except:
         return
 
-    infile1A = 'analysis/fringeshield/' + metal + '_' + cond + '.txt'
-    infile2A = 'validate/fringeshield/' + metal + '_' + cond + '.txt'
+    infile1A = process + '/analysis/fringeshield/' + metal + '_' + cond + '.txt'
+    infile2A = process + '/validate/fringeshield/' + metal + '_' + cond + '.txt'
 
-    infile1B = 'analysis/fringe/' + metal + '_' + cond + '.txt'
-    infile2B = 'validate/fringe/' + metal + '_' + cond + '.txt'
+    infile1B = process + '/analysis/fringe/' + metal + '_' + cond + '.txt'
+    infile2B = process + '/validate/fringe/' + metal + '_' + cond + '.txt'
+
+    validated = True
+    if not os.path.isfile(infile2A):
+        validated = False
 
     # Get the result for single wire (effectively, separation = infinite)
     # NOTE:  The assumption is that this file has two lines, and the 2nd line
@@ -1064,10 +970,11 @@ def plot_fringeshield(metal, cond, areacap, fringe, fringeshield):
         tokens = lines[1].split()
         totalcap1 = float(tokens[3]) * 1e12
 
-    with open(infile2B, 'r') as ifile:
-        lines = ifile.read().splitlines()
-        tokens = lines[1].split()
-        totalcap2 = float(tokens[3]) * 1e12
+    if validated:
+        with open(infile2B, 'r') as ifile:
+            lines = ifile.read().splitlines()
+            tokens = lines[1].split()
+            totalcap2 = float(tokens[3]) * 1e12
 
     # Get the result from FasterCap
     with open(infile1A, 'r') as ifile:
@@ -1090,22 +997,23 @@ def plot_fringeshield(metal, cond, areacap, fringe, fringeshield):
             fshield1.append(fcoup1)
 
     # Get the result from magic
-    with open(infile2A, 'r') as ifile:
-        lines = ifile.read().splitlines()
-        # Check values from first line and make sure the metal width
-        # agrees for both files
-        tokens = lines[0].split()
+    if validated:
+        with open(infile2A, 'r') as ifile:
+            lines = ifile.read().splitlines()
+            # Check values from first line and make sure the metal width
+            # agrees for both files
+            tokens = lines[0].split()
 
-        if width == float(tokens[2]):
             sep2 = []
             fshield2 = []
             for line in lines:
                 tokens = line.split()
-                sep2.append(float(tokens[3]))
-                # Convert coupling cap to aF/um and subtract from the result for a
-                # single wire (i.e., infinite separation)
-                fcoup2 = (float(tokens[4]) * 1e12) / totalcap2
-                fshield2.append(fcoup2)
+                if abs(width - float(tokens[2])) < 0.01:
+                    sep2.append(float(tokens[3]))
+                    # Convert coupling cap to aF/um and subtract from the result for a
+                    # single wire (i.e., infinite separation)
+                    fcoup2 = (float(tokens[4]) * 1e12) / totalcap2
+                    fshield2.append(fcoup2)
 
     # Compute the analytic fringe shielding
     fsmult = fsrec[0]
@@ -1126,7 +1034,8 @@ def plot_fringeshield(metal, cond, areacap, fringe, fringeshield):
     canvas = FigureCanvasAgg(fig)
     ax = fig.add_subplot(111)
     ax.plot(sep1, fshield1, label='FasterCap')
-    ax.plot(sep2, fshield2, label='Magic')
+    if validated:
+        ax.plot(sep2, fshield2, label='Magic')
     ax.plot(sep1, ftest, label='Analytic')
     ax.set_xlabel('Wire separation (um)')
     ax.set_ylabel('Fringe capacitance shielding (fraction)')
@@ -1134,15 +1043,15 @@ def plot_fringeshield(metal, cond, areacap, fringe, fringeshield):
     legend = ax.legend(loc = 2, bbox_to_anchor = (1.05, 1), borderaxespad=0.)
     ax.set_title(metal + ' to ' + cond + ' fringe shielding vs. wire separation')
 
-    os.makedirs('plots/fringeshield', exist_ok=True)
-    canvas.print_figure('plots/fringeshield/' + metal + '_' + cond + '.svg',
+    os.makedirs(process + '/plots/fringeshield', exist_ok=True)
+    canvas.print_figure(process + '/plots/fringeshield/' + metal + '_' + cond + '.svg',
 		bbox_inches = 'tight', bbox_extra_artists = [legend])
 
 #--------------------------------------------------------------
 # Plot partial fringe capacitance data
 #--------------------------------------------------------------
 
-def plot_fringepartial(metal, cond, areacap, fringe, fringepartial):
+def plot_fringepartial(process, metal, cond, areacap, fringe, fringepartial):
 
     # Check if metal + cond combination is valid
     try:
@@ -1150,11 +1059,15 @@ def plot_fringepartial(metal, cond, areacap, fringe, fringepartial):
     except:
         return
 
-    infile1A = 'analysis/fringepartial/' + metal + '_' + cond + '.txt'
-    infile2A = 'validate/fringepartial/' + metal + '_' + cond + '.txt'
+    infile1A = process + '/analysis/fringepartial/' + metal + '_' + cond + '.txt'
+    infile2A = process + '/validate/fringepartial/' + metal + '_' + cond + '.txt'
 
-    infile1B = 'analysis/fringe/' + metal + '_' + cond + '.txt'
-    infile2B = 'validate/fringe/' + metal + '_' + cond + '.txt'
+    infile1B = process + '/analysis/fringe/' + metal + '_' + cond + '.txt'
+    infile2B = process + '/validate/fringe/' + metal + '_' + cond + '.txt'
+
+    validated = True
+    if not os.path.isfile(infile2A):
+        validated = False
 
     # Get the result for single wire (effectively, separation = infinite)
     # NOTE:  The assumption is that this file has two lines, and the 1sd line
@@ -1167,10 +1080,11 @@ def plot_fringepartial(metal, cond, areacap, fringe, fringepartial):
         tokens = lines[0].split()
         totalcap1 = float(tokens[3]) * 1e12
 
-    with open(infile2B, 'r') as ifile:
-        lines = ifile.read().splitlines()
-        tokens = lines[0].split()
-        totalcap2 = float(tokens[3]) * 1e12
+    if validated:
+        with open(infile2B, 'r') as ifile:
+            lines = ifile.read().splitlines()
+            tokens = lines[0].split()
+            totalcap2 = float(tokens[3]) * 1e12
 
     # Get the result from FasterCap
     with open(infile1A, 'r') as ifile:
@@ -1193,22 +1107,23 @@ def plot_fringepartial(metal, cond, areacap, fringe, fringepartial):
             ffringe1.append(fcoup1)
 
     # Get the result from magic
-    with open(infile2A, 'r') as ifile:
-        lines = ifile.read().splitlines()
-        # Check values from first line and make sure the metal width
-        # agrees for both files
-        tokens = lines[0].split()
+    if validated:
+        with open(infile2A, 'r') as ifile:
+            lines = ifile.read().splitlines()
+            # Check values from first line and make sure the metal width
+            # agrees for both files
+            tokens = lines[0].split()
 
-        if width == float(tokens[2]):
             sep2 = []
             ffringe2 = []
-            for line in lines:
-                tokens = line.split()
-                sep2.append(-float(tokens[3]))
-                # Convert coupling cap to aF/um and subtract from the result for a
-                # single wire (i.e., infinite separation)
-                fcoup2 = (float(tokens[6]) * 1e12) / totalcap2
-                ffringe2.append(fcoup2)
+            if abs(width - float(tokens[2])) < 0.01:
+                for line in lines:
+                    tokens = line.split()
+                    sep2.append(-float(tokens[3]))
+                    # Convert coupling cap to aF/um and subtract from the result for a
+                    # single wire (i.e., infinite separation)
+                    fcoup2 = (float(tokens[6]) * 1e12) / totalcap2
+                    ffringe2.append(fcoup2)
 
     # Compute the analytic partial fringe
     fpmult = fprec[0]
@@ -1229,7 +1144,8 @@ def plot_fringepartial(metal, cond, areacap, fringe, fringepartial):
     canvas = FigureCanvasAgg(fig)
     ax = fig.add_subplot(111)
     ax.plot(sep1, ffringe1, label='FasterCap')
-    ax.plot(sep2, ffringe2, label='Magic')
+    if validated:
+        ax.plot(sep2, ffringe2, label='Magic')
     ax.plot(sep1, ftest, label='Analytic')
     ax.set_xlabel('Coupling layer width (um)')
     ax.set_ylabel('Partial fringe capacitance (fraction)')
@@ -1237,8 +1153,8 @@ def plot_fringepartial(metal, cond, areacap, fringe, fringepartial):
     legend = ax.legend(loc = 2, bbox_to_anchor = (1.05, 1), borderaxespad=0.)
     ax.set_title(metal + ' to ' + cond + ' partial fringe amount vs. width of coupling layer')
 
-    os.makedirs('plots/fringepartial', exist_ok=True)
-    canvas.print_figure('plots/fringepartial/' + metal + '_' + cond + '.svg',
+    os.makedirs(process + '/plots/fringepartial', exist_ok=True)
+    canvas.print_figure(process + '/plots/fringepartial/' + metal + '_' + cond + '.svg',
 		bbox_inches = 'tight', bbox_extra_artists = [legend])
 
 #--------------------------------------------------------------
@@ -1290,8 +1206,6 @@ if __name__ == '__main__':
     #--------------------------------------------------------------
 
     stackupfile = arguments[0]
-    if len(arguments) > 1:
-        startupfile = arguments[1]
 
     try:
         exec(open(stackupfile, 'r').read())
@@ -1302,8 +1216,8 @@ if __name__ == '__main__':
     try:
         process
     except:
-        print('Error:  Metal stack does not define process!')
-        sys.exit(1)
+        print('Warning:  Metal stack does not define process!')
+        process = 'unknown'
 
     try:
         layers
@@ -1317,33 +1231,44 @@ if __name__ == '__main__':
         print('Error:  Metal stack does not define limits!')
         sys.exit(1)
 
+    if len(arguments) > 1:
+        startupfile = arguments[1]
+    else:
+        # Check two standard places for open_pdks installation
+        
+        startupfile = '/usr/local/share/pdk/' + process + '/libs.tech/magic/' + process + '.magicrc'
+        if not os.path.isfile(startupfile):
+            startupfile = '/usr/share/pdk/' + process + '/libs.tech/magic/' + process + '.magicrc'
+            if not os.path.isfile(startupfile):
+                startupfile = None
+  
     metals, substrates = generate_layers(layers)
 
     if verbose > 0:
         print('Generating result files.')
 
-    generate_areacap(stackupfile)
-    generate_fringe(stackupfile, metals, substrates, limits, verbose)
-    generate_sidewall(stackupfile, metals, substrates, limits, verbose)
-    generate_fringeshield(stackupfile, metals, substrates, limits, verbose)
-    generate_fringepartial(stackupfile, metals, substrates, limits, verbose)
+    generate_areacap(process, stackupfile, verbose)
+    generate_fringe(process, stackupfile, metals, substrates, limits, verbose)
+    generate_sidewall(process, stackupfile, metals, substrates, limits, verbose)
+    generate_fringeshield(process, stackupfile, metals, substrates, limits, verbose)
+    generate_fringepartial(process, stackupfile, metals, substrates, limits, verbose)
 
     if verbose > 0:
         print('Computing coefficients.')
 
-    areacap = compute_areacap()
-    fringe = compute_fringe(metals, substrates, areacap, 1)
-    fringe10 = compute_fringe(metals, substrates, areacap, 10)
-    sidewall = compute_sidewall(metals)
-    fringeshield = compute_fringeshield(metals, substrates, areacap, fringe10)
-    fringepartial = compute_fringepartial(metals, limits, areacap, fringe)
+    areacap = compute_areacap(process)
+    fringe = compute_fringe(process, metals, substrates, areacap, 1)
+    fringe10 = compute_fringe(process, metals, substrates, areacap, 10)
+    sidewall = compute_sidewall(process, metals)
+    fringeshield = compute_fringeshield(process, metals, substrates, areacap, fringe10)
+    fringepartial = compute_fringepartial(process, metals, limits, areacap, fringe)
 
     if verbose > 0:
         print('')
 
     print('Process stackup ' + stackupfile + ' coefficients:')
     print_coefficients(metals, substrates)
-    save_coefficients(metals, substrates, 'analysis/coefficients.txt')
+    save_coefficients(metals, substrates, process + '/analysis/coefficients.txt')
 
     # Only run validation against magic if a magic startup file was specified on the
     # command line.
@@ -1353,20 +1278,22 @@ if __name__ == '__main__':
             print('')
             print('Validating results against magic tech file:')
 
-        validate_fringe(stackupfile, startupfile, metals, substrates, limits, verbose)
-        validate_sidewall(stackupfile, startupfile, metals, substrates, limits, verbose)
-        validate_fringeshield(stackupfile, startupfile, metals, substrates, limits, verbose)
-        validate_fringepartial(stackupfile, startupfile, metals, substrates, limits, verbose)
+        validate_fringe(process, stackupfile, startupfile, metals, substrates, limits, verbose)
+        validate_sidewall(process, stackupfile, startupfile, metals, substrates, limits, verbose)
+        validate_fringeshield(process, stackupfile, startupfile, metals, substrates, limits, verbose)
+        validate_fringepartial(process, stackupfile, startupfile, metals, substrates, limits, verbose)
+    else:
+        print('No magic startup file found for process ' + process + '.  Not validating results.')
 
     # Test plots
     if have_matplotlib:
         for metal in metals:
-            plot_sidewall(metal, sidewall)
+            plot_sidewall(process, metal, sidewall)
             for cond in substrates:
-                plot_fringeshield(metal, cond, areacap, fringe10, fringeshield)
-                plot_fringepartial(metal, cond, areacap, fringe10, fringepartial)
+                plot_fringeshield(process, metal, cond, areacap, fringe10, fringeshield)
+                plot_fringepartial(process, metal, cond, areacap, fringe10, fringepartial)
             for cond in metals:
-                plot_fringeshield(metal, cond, areacap, fringe10, fringeshield)
-                plot_fringepartial(metal, cond, areacap, fringe10, fringepartial)
+                plot_fringeshield(process, metal, cond, areacap, fringe10, fringeshield)
+                plot_fringepartial(process, metal, cond, areacap, fringe10, fringepartial)
 
     sys.exit(0)

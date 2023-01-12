@@ -18,7 +18,7 @@ import subprocess
 import multiprocessing
 
 # Local files
-from ordered_stack import ordered_2metal_stack
+from ordered_stack import ordered_stack
 from generate_geometry import generate_two_offset_wire_file
 
 #--------------------------------------------------------------
@@ -193,8 +193,8 @@ except:
 try:
     process
 except:
-    print('Error:  Metal stack does not define process!')
-    sys.exit(1)
+    print('Warning:  Metal stack does not define process!')
+    process = 'unknown'
 
 try:
     layers
@@ -256,6 +256,10 @@ if verbose > 0:
     print('')
 
 filelist = []
+
+# Make sure the working directory exists
+os.makedirs(process + '/fastercap_files/w2o', exist_ok=True)
+
 for metal1 in metals:
     if use_default_width1 == True:
         min1width = limits[metal1][0]
@@ -286,7 +290,7 @@ for metal1 in metals:
 
         # Generate the stack for this particular combination of
         # reference conductor and metal
-        pstack = ordered_2metal_stack(substrate, metal1, metal2, layers)
+        pstack = ordered_stack(substrate, [metal1, metal2], layers)
 
         # (Diagnostic) Print out the stack
         if vebose > 0:
@@ -301,7 +305,7 @@ for metal1 in metals:
                 w1spec = "{:.2f}".format(width1).replace('.', 'p').replace('-', 'n')
                 for width2 in numpy.arange(w2start, w2stop, w2step):
                     w2spec = "{:.2f}".format(width2).replace('.', 'p').replace('-', 'n')
-                    filename = 'fastercap_files/w2o/' + metal1 + '_w_' + w1spec + '_' + metal2 + '_w_' + w2spec + '_s_' + sspec + '.lst'
+                    filename = process + '/fastercap_files/w2o/' + metal1 + '_w_' + w1spec + '_' + metal2 + '_w_' + w2spec + '_s_' + sspec + '.lst'
                     generate_two_offset_wire_file(filename, substrate, metal1, width1, metal2, width2, separation, pstack)
                     filelist.append(filename)
 
@@ -310,59 +314,73 @@ for metal1 in metals:
 #--------------------------------------------------------------
 
 def run_fastercap(file, tolerance):
+    loctol = tolerance
     fastercapexec = '/home/tim/src/FasterCap_6.0.7/FasterCap'
 
-    tolspec = "-a{:.3f}".format(tolerance)
-
     print('Running FasterCap on input file ' + file)
-    try:
-        proc = subprocess.run([fastercapexec, '-b', file, tolspec],
-		stdin = subprocess.DEVNULL,
-		stdout = subprocess.PIPE,
-		stderr = subprocess.PIPE,
-		universal_newlines = True,
-                timeout = 30)
+    done = False
+    while not done:
+        tolspec = "-a{:.3f}".format(loctol)
+        try:
+            proc = subprocess.run([fastercapexec, '-b', file, tolspec],
+			stdin = subprocess.DEVNULL,
+			stdout = subprocess.PIPE,
+			stderr = subprocess.PIPE,
+			universal_newlines = True,
+                	timeout = 30)
     except subprocess.TimeoutExpired:
-        # Ignore this result
-        pass
-    else:
-        if proc.stdout:
-            for line in proc.stdout.splitlines():
-                if 'g1_' in line:
-                    g1line = line.split()
-                    g00 = float(g1line[1])
-                    g01 = float(g1line[2])
-                elif 'g2_' in line:
-                    g2line = line.split()
-                    g10 = float(g2line[1])
-                    g11 = float(g2line[2])
-        if proc.stderr:
-            print('Error message output from FasterCap:')
-            for line in proc.stderr.splitlines():
-                print(line)
-            if proc.returncode != 0:
-                print('ERROR:  FasterCap exited with status ' + str(proc.returncode))
-
+            if loctol > 0.1:
+                print('ERROR:  Failing with high tolerance;  bailing.')
+                break
+            loctol *= 2
+            if verbose > 0:
+                print('Trying again with tolerance = ' + '{:.3f}'.format(loctol))
         else:
-            m1sub = g00 + g01
-            m2sub = g10 + g11
-            ccoup = -(g01 + g10) / 2
+            done = True
+            if loctol > 0.01:
+                print('WARNING:  High tolerance value (' + tolspec + ') used.')
 
-            scoup = "{:.5g}".format(ccoup)
-            sm1sub = "{:.5g}".format(m1sub)
-            sm2sub = "{:.5g}".format(m2sub)
-            print('Result:  Ccoup=' + scoup + '  Cm1sub=' + sm1sub + '  Cm2sub=' + sm2sub)
+    if proc.stdout:
+        if verbose > 1:
+            print('Diagnostic output from FasterCap:')
+        for line in proc.stdout.splitlines():
+            if verbose > 1:
+                print(line)
+            if 'g1_' in line:
+                g1line = line.split()
+                g00 = float(g1line[1])
+                g01 = float(g1line[2])
+            elif 'g2_' in line:
+                g2line = line.split()
+                g10 = float(g2line[1])
+                g11 = float(g2line[2])
+    if proc.stderr:
+        print('Error message output from FasterCap:')
+        for line in proc.stderr.splitlines():
+            print(line)
+        if proc.returncode != 0:
+            print('ERROR:  FasterCap exited with status ' + str(proc.returncode))
 
-            # Add to results
-            fileroot = os.path.splitext(file)[0]
-            filename = os.path.split(fileroot)[-1]
-            values = filename.split('_')
-            metal1 = values[0]
-            width1 = float(values[2].replace('p', '.').replace('n', '-'))
-            metal2 = values[3]
-            width2 = float(values[5].replace('p', '.').replace('n', '-'))
-            sep = float(values[7].replace('p', '.').replace('n', '-'))
-            return (metal1, metal2, width1, width2, sep, m1sub, m2sub, ccoup)
+    elif done:
+        m1sub = g00 + g01
+        m2sub = g10 + g11
+        ccoup = -(g01 + g10) / 2
+
+        scoup = "{:.5g}".format(ccoup)
+        sm1sub = "{:.5g}".format(m1sub)
+        sm2sub = "{:.5g}".format(m2sub)
+        print('Result:  Ccoup=' + scoup + '  Cm1sub=' + sm1sub + '  Cm2sub=' + sm2sub)
+
+        # Add to results
+        fileroot = os.path.splitext(file)[0]
+        filename = os.path.split(fileroot)[-1]
+        values = filename.split('_')
+        metal1 = values[0]
+        width1 = float(values[2].replace('p', '.').replace('n', '-'))
+        metal2 = values[3]
+        width2 = float(values[5].replace('p', '.').replace('n', '-'))
+        sep = float(values[7].replace('p', '.').replace('n', '-'))
+        return (metal1, metal2, width1, width2, sep, m1sub, m2sub, ccoup)
 
     return None
 
@@ -390,7 +408,9 @@ if len(presults) == 0:
     sys.exit(0)
 
 # Make sure the output directory exists
-os.makedirs(os.path.split(outfile)[0], exist_ok=True)
+outdir = os.path.split(outfile)[0]
+if outdir != '':
+    os.makedirs(outdir, exist_ok=True)
 
 print('Results:')
 with open(outfile, 'w') as ofile:
