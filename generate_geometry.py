@@ -99,7 +99,6 @@ def generate_one_wire_file(filename, conductor, metal, width, pstack):
                             if pstack[j][1] == 'c' and pstack[j][5] > pstack[j][4]:
                                 top_dielectric = pstack[j]
                                 break
-
                     if dielectric_above and layer_below[7] != dielectric_above[7]:
                         # Simple dielectric boundary spanning the width of the simulated space
 
@@ -406,9 +405,10 @@ def generate_1wire_2plane_file(filename, substrate, conductor, metal, width, pst
                         else:
                             if pstack[j][1] == 'c' and pstack[j][4] > pstack[j][3]:
                                 dielectric_above = pstack[j]
+                                break
                             if pstack[j][1] == 'c' and pstack[j][5] > pstack[j][4]:
                                 top_dielectric = pstack[j]
-                            break
+                                break
                     if dielectric_above and layer_below[7] != dielectric_above[7]:
                         # Simple dielectric boundary spanning the width of the simulated space
 
@@ -721,9 +721,10 @@ def generate_one_shielded_wire_file(filename, substrate, conductor, metal, width
                         else:
                             if pstack[j][1] == 'c' and pstack[j][4] > pstack[j][3]:
                                 dielectric_above = pstack[j]
+                                break
                             if pstack[j][1] == 'c' and pstack[j][5] > pstack[j][4]:
                                 top_dielectric = pstack[j]
-                            break
+                                break
                     if dielectric_above and layer_below[7] != dielectric_above[7]:
                         # Simple dielectric boundary spanning the width of the simulated space
 
@@ -1084,9 +1085,10 @@ def generate_two_wire_file(filename, conductor, metal, width, spacing, pstack):
                         else:
                             if pstack[j][1] == 'c' and pstack[j][4] > pstack[j][3]:
                                 dielectric_above = pstack[j]
+                                break
                             if pstack[j][1] == 'c' and pstack[j][5] > pstack[j][4]:
                                 top_dielectric = pstack[j]
-                            break
+                                break
                     if dielectric_above and layer_below[7] != dielectric_above[7]:
                         # Simple dielectric boundary spanning the width of the simulated space
 
@@ -1428,9 +1430,10 @@ def generate_two_offset_wire_file(filename, substrate, conductor, cwidth, metal,
                         else:
                             if pstack[j][1] == 'c' and pstack[j][4] > pstack[j][3]:
                                 dielectric_above = pstack[j]
+                                break
                             if pstack[j][1] == 'c' and pstack[j][5] > pstack[j][4]:
                                 top_dielectric = pstack[j]
-                            break
+                                break
                     if dielectric_above and layer_below[7] != dielectric_above[7]:
                         # Simple dielectric boundary spanning the width of the simulated space
 

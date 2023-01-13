@@ -1,23 +1,44 @@
+-----------------------------------------------------------------------
 capiche:  A system for analyzing foundry metal stackups using FasterCap
 -----------------------------------------------------------------------
+Author: Tim Edwards
 
+Initial version: January 6, 2023
+
+Updates:
+
+ 1) January 12, 2023:  Corrected some errors in FasterCap input
+    files, including breaking out separate left and right segments
+    for metal wires that have sidewall dielectric.  Corrected the
+    handling of TOPOX over metal 5 in sky130A, which was previously
+    capturing the sidewall but not the dielectric above the metal.
+
+-----------------------------------------------------------------------
 Requirements:
+
 	python3	(with packages numpy, scipy, and matplotlib)
 	FasterCap
 	magic
 	open_pdks (installed for sky130 process)
 
+-----------------------------------------------------------------------
 Usage:
-Run the example using
 
-	./compute_coefficients.py  sky130A/metal_stack_sky130A.py \
-		/usr/local/share/pdk/sky130A/libs.tech/magic/sky130A.magicrc \
-		-verbose=1
+	./compute_coefficients.py  sky130A/metal_stack_sky130A.py
 
-The example command line above assumes that open_pdks has installed
-the SkyWater sky130 PDK in the default location, which is
-/usr/local/share/ (see open_pdks install instructions for more
-information).
+NOTE: If FasterCap isn't in the standard execution path, set the environment
+variable FASTERCAP_EXEC to the full path of FasterCap.
+
+NOTE: If magic isn't in the standard execution path, set the environment
+variable MAGIC_EXEC to the full path of magic.
+
+NOTE: If the PDK is not installed in the default /usr/local/share/ or commonly
+used /usr/share/ directories, then pass the location of the PDK .magicrc
+startup file as the 2nd argument to "compute_coefficients.py" (see the
+open_pdks installation instructions for more information).
+
+Add option "-verbose=1" for more output, or "-verbose=2" for considerably
+more output.
 
 This will run for a long time*, generating metal wire configurations
 and running them through FasterCap to generate coupling capacitance
@@ -28,23 +49,266 @@ and generate plots of the FasterCap results vs. results extracted
 using the program "magic" (https://github.com/RTimothyEdwards/magic)
 and the analytic expressions computed using the calculated coefficients.
 
-Most output is in the form of capacitance tables and SVG format plots.
-
 * Around 12 hours on a modern 16-core processor, e.g., Intel core-i9
   Results are saved, so that subsequent runs will not repeat the
   FasterCap runs if the output files exist.  Most of the time is
   spent running FasterCap.
 
------------------------------------------------------------------------
-Author: Tim Edwards
-This is a work in progress.
-Initial version: January 6, 2023
-Update: January 12, 2023:  Corrected some errors in FasterCap input
-    files, including breaking out separate left and right segments
-    for metal wires that have sidewall dielectric.  Corrected the
-    handling of TOPOX over metal 5 in sky130A, which was previously
-    capturing the sidewall but not the dielectric above the metal.
 
+Most output is in the form of capacitance tables and SVG format plots.
+
+The main output file is <pdk_name>/analysis/coefficients.txt
+listing the following coefficients:
+
+1. areacap <metal> <conductor> <value>
+
+	The parallel plate capacitance in aF/um^2 between
+	the bottom of metal layer <metal> and the top of
+	conductor layer <conductor>, which may be a metal or
+	a substrate type.
+
+2. fringecap <metal> <conductor> <value>
+
+	The maximum fringe capacitance per edge length in aF/um
+	between <metal> and <conductor>, where <conductor> may
+	be another metal layer above or below <metal>, or a
+	substrate type.  The <conductor> is treated as an
+	effectively infinite surface in all directions.
+
+3. sidewall <metal> <value> <offset>
+
+	The value of sidewall coupling capacitance per unit
+	length satisfying the analytical expression
+
+		Ccoup = <value> / (separation + <offset>)
+
+	Where <value> is in aF/um and <offset> is in um.
+
+4. fringeshield <metal> <conductor> <multiplier> <offset>
+
+	The fraction of fringe capacitance shielded by a
+	nearby wire on the same plane as <metal> with
+	both wires placed over a large plane of material
+	<conductor>.  The coefficients are used in the
+	following analytic expression for fringe shielding:
+
+		Cfrac = tanh(<multiplier> * (separation + <offset>))
+
+	Where <multiplier> is unitless and <offset> is in um.
+	"separation" is the distance from the edge of <metal>
+	to the edge of the nearby wire of the same metal type.
+	Cfrac represents the *unshielded* portion of the fringe
+	capacitance.
+
+5. fringepartial <metal> <conductor> <multiplier> <offset>
+
+	The fraction of fringe capacitance of <metal> incident
+	upon another layer <conductor> (which may be a metal
+	layer or substrate type) from the edge of <metal> out
+	to a given distance.  The coefficients are used in the
+	following analytic expression for the partial fringe:
+
+		Cfrac = (2/pi)*arctan(<multiplier> * (distance + <offset>))
+
+	Where <multiplier> is unitless and <offset> is in um.
+	Cfrac represents the portion of the maximum fringe
+	capacitance (i.e., item (2) above) seen on <conductor>
+	from the metal edge out to distance "distance".
+
+-----------------------------------------------------------------------
+
+Plots are made of the data taken for items (3), (4), and (5)
+above.  Each plot has three components:
+
+	a) The measurements obtained from FasterCap analysis
+	b) The best-fit curve for the analytic expressions discussed above
+	c) The measurements obtained from extracted layout in magic
+
+Plots can be found in:
+	<pdk_name>/plots/sidewall	for item (3) above
+	<pdk_name>/plots/fringeshield	for item (4) above
+	<pdk_name>/plots/fringepartial	for item (5) above
+
+Note that as of the first version of Capiche, magic encodes
+models of fringe shielding and partial fringing that are different
+from the analytical expressions described above.  This is to be
+expected, as the purpose of Capiche is to improve the models used
+in magic (see "work to do", below).
+
+-----------------------------------------------------------------------
+Input file format:
+
+The main input file to Capiche is a python script that describes
+a process metal and dielectric stack.  The file
+
+	sky130A/metal_stack_sky130A.py
+
+is provided as a complete example, and describes the metal stack
+of the SkyWater sky130 process with options as selected for the
+open_pdks process variant name "sky130A" (which is 6 metal layers;
+see open_pdks for more information).  Any process can be described
+with a similar file, which needs to encode a number of values in
+Python variable form, as described below.  The file is evaluated
+in Python line by line, so any valid Python syntax is allowed.
+However, Capiche Python scripts will only expect and use the
+following variables:
+
+	process = '<pdk_name>'
+
+where <pdk_name> is a name given to the process (e.g., "sky130A").
+This name will be used as the directory top level for all files
+and data generated by Capiche for the process.  If the name matches
+an open_pdks technology variant name (e.g., "sky130A"), then it
+will also be used to automatically find the magic tech file for the
+process.
+
+	layers['<layer_name>'] = ['<type>', <values>. . .]
+
+This is the main metal and dielectric stackup information.  There
+are six types recognized by the single-letter <type>.  The type
+of layer determines what the remaining <values> items in the list
+must be.  The layer types are as follows:
+
+	'd':	Diffusion type, used for substrate, well, or diffusion
+	'f':	Field oxide type, which is directly above the substrate
+	'k':	Simple dielectric
+	'c':	Conformal dielectic
+	's':	Sidewall dielectric
+	'm':	Metal
+
+Layers may be listed in any order, although obviously a bottom-to-top
+or top-to-bottom format will be easier to read and understand.  Every
+layer stack must have one layer called 'air' representing the area
+above the highest manufactured layer in the process.  All other layer
+names are arbitrary and should be chosen to be meaningful within the
+context of the process.
+
+The list entries for each of the types above are as follows:
+
+	['d', <height>, <reference>]
+
+where <height> is the height above the substrate (assumed to be at
+zero height), and <reference> is the name of the dielectric layer
+immediately above the layer (normally field oxide).
+
+	['f', <K_value>]
+
+This entry is for the field oxide.  This is like other dielectrics,
+but the field oxide is always referenced to the substrate, so it has
+only a single value, which is the dielectric K coefficient (a
+dimensionless unit which is multiplied by the permitivity of vacuum)
+
+	['k', <K_value>, <reference>]
+
+This is a simple dielectric boundary.  All planes in a fabrication
+process are assumed to be dictated by each metal layer, so dielectric
+boundaries do not need to define a layer hight.  They are simply
+referenced to the dielectric layer name <reference> of the dielectric
+directly below the layer.  The <K_value> is the dielectric K constant.
+
+	['c', <K_value>, <thick1>, <thick2>, <thick3>, <reference>]
+
+This is a conformal dielectric which is formed around a metal layer
+and forms a layer above and arount the metal.  <K_value> is the
+dielectric K constant of the layer.  <thick1> is the thickness of
+the dielectric over metal, while <thick2> is the thickness of the
+dielectric where the metal is not present.  <thick3> is the sidewall
+thickness of the dielectric.  The <reference> layer is always a
+metal.
+
+	['s', <K_value>, <thick1>, <thick2>, <reference>]
+
+This is a sidewall dielectric which is formed around a metal layer
+but does not exist away from the metal.  <thick1> is the height
+of the layer above the metal, and may be zero if the dielectric is
+only on the metal sidewall and does not exist on top of the metal.
+<thick2> is the width of the dielectric from the metal sidewall
+outward.  The <reference> layer is always a metal.
+
+	['m', <height>, <thick>, <ref_below>, <ref_above>]
+
+This entry represents a metal (where "metal" is taken to mean any
+conductor layer that is not a substrate type, and so includes
+layers like polysilicon or titanium nitride interconnect).
+<height> is the height of the metal above the substrate, in microns,
+and <thick> is thickness of the metal, also in microns.  The
+layer name <ref_below> is the dielectric underneath the metal, and
+the layer name <ref_above> is the dielectric above the metal.
+The <ref_above> is always the layer directly on top of the metal.
+If a sidewall has a non-zero <thick1> value, then it is the
+dielectric used for <ref_above>.  If there is a sidewall dielectric
+with zero <thick1> and there is a secondary sidewall with nonzero
+<thick1> or a conformal dielectric present, then that layer would
+be used as <ref_above>.
+	
+	limits['<layer_name>'] = [<minwidth>, <minspace>]
+
+This variable is used to declare the minimum width and minimum
+space (in micron units) for each metal layer.  It is used
+when Capiche is automatically selecting the range of material
+widths and spacings to simulate.
+
+	magiclayers['<layer_name>'] = '<paint_type>'
+
+This variable is used to map names used in Capiche to layer names
+used in magic.
+
+-----------------------------------------------------------------------
+Script procedures:
+
+Capiche can be run with the "compute_coefficients.py" top level
+script.  However, it is also designed to be imported into a Python
+interpreter, where all routines can be called directly.  The
+main routines defined by Capiche are:
+
+FasterCap simulation routines:
+
+	generate_areacap(process, stackupfile, verbose=0)
+	generate_fringe(process, stackupfile, metals, substrates,
+			limits, verbose=0)
+	generate_sidewall(process, stackupfile, metals, substrates,
+			limits, verbose=0)
+	generate_fringeshield(process, stackupfile, metals, substrates,
+			limits, verbose=0)
+	generate_fringepartial(process, stackupfile, metals, substrates,
+			limits, verbose=0)
+
+Coefficient computations:
+
+	compute_areacap(process)
+	compute_fringe(process, metals, substrates, areacap, size)
+	compute_sidewall(process, metals)
+	compute_fringeshield(process, metals, substrates, areacap, fringe10)
+	compute_fringepartial(process, metals, limits, areacap, fringe)
+
+Magic extraction routines:
+
+	validate_fringe(process, stackupfile, startupfile, metals, substrates,
+			limits, verbose=0)
+	validate_sidewall(process, stackupfile, startupfile, metals, substrates,
+			limits, verbose=0)
+	validate_fringeshield(process, stackupfile, startupfile, metals, substrates,
+			limits, verbose=0)
+	validate_fringepartial(process, stackupfile, startupfile, metals, substrates,
+			limits, verbose=0)
+
+Coefficient print/load/save:
+
+	print_coefficients(metals, substrates, areacap, fringe, sidewall,
+			fringeshield, fringepartial)
+	save_coefficients(metals, substrates, areacap, fringe, sidewall,
+			fringeshield, fringepartial, outfile)
+	load_coefficients(infile)
+
+Plot generation:
+
+	plot_sidewall(process, metal, sidewall)
+	plot_fringeshield(process, metal, cond, areacap, fringe, fringeshield)
+	plot_fringepartial(process, metal, cond, areacap, fringe, fringepartial)
+	
+
+-----------------------------------------------------------------------
+Capiche is a work in progress.
 Work to do:
 -----------------------------------------------------------------------
 (0) Add description of output file formats

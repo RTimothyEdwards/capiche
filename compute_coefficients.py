@@ -504,6 +504,12 @@ def compute_fringepartial(process, metals, limits, areacap, fringe):
             totfringe = fringe[metal + '+' + conductor]
             halfwidth = minwidth / 2
 
+            # XXX WIP XXX
+            print('compute_fringepartial: ' + metal + ' to ' + conductor) 
+            print('   platecap   = ' + '{:.3f}'.format(platecap))
+            print('   totfringe  = ' + '{:.3f}'.format(totfringe))
+            print('   last ydata = ' + '{:.3f}'.format(ycdata[-1]))
+
             xdata = []
             for x in xcdata:
                 xdata.append(-(x + halfwidth))
@@ -702,7 +708,7 @@ def validate_fringepartial(process, stackupfile, startupfile, metals, substrates
 # Print out all results
 #-------------------------------------------------------------------------
 
-def print_coefficients(metals, substrates):
+def print_coefficients(metals, substrates, areacap, fringe, sidewall, fringeshield, fringepartial):
     for metal in metals:
 
         print('')
@@ -770,7 +776,7 @@ def print_coefficients(metals, substrates):
 # Save all model coefficients
 #-------------------------------------------------------------------------
 
-def save_coefficients(metals, substrates, outfile):
+def save_coefficients(metals, substrates, areacap, fringe, sidewall, fringeshield, fringepartial, outfile):
     with open(outfile, 'w') as ofile:
         for metal in metals:
             for subs in substrates:
@@ -1070,7 +1076,7 @@ def plot_fringepartial(process, metal, cond, areacap, fringe, fringepartial):
         validated = False
 
     # Get the result for single wire (effectively, separation = infinite)
-    # NOTE:  The assumption is that this file has two lines, and the 1sd line
+    # NOTE:  The assumption is that this file has two lines, and the 1st line
     # has a minimum wire width, which matches the width used in the
     # fringepartial directory results.  To do:  Plot for any width or across
     # widths.
@@ -1267,8 +1273,8 @@ if __name__ == '__main__':
         print('')
 
     print('Process stackup ' + stackupfile + ' coefficients:')
-    print_coefficients(metals, substrates)
-    save_coefficients(metals, substrates, process + '/analysis/coefficients.txt')
+    print_coefficients(metals, substrates, areacap, fringe, sidewall, fringeshield, fringepartial)
+    save_coefficients(metals, substrates, areacap, fringe, sidewall, fringeshield, fringepartial, process + '/analysis/coefficients.txt')
 
     # Only run validation against magic if a magic startup file was specified on the
     # command line.
