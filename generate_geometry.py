@@ -876,8 +876,12 @@ def generate_one_shielded_wire_file(filename, substrate, conductor, metal, width
 
                 # If layer_below is a sidewall dielectric, then add its
                 # width.  If it is a metal, then the value will be zero
-                wirex1 = halfwidth + layer_below[6]
-                wirex2 = halfwidth + layer[6]
+                if refmetal == conductor:
+                    wirex1 = shhalfwidth + layer_below[6]
+                    wirex2 = shhalfwidth + layer[6]
+                else:
+                    wirex1 = halfwidth + layer_below[6]
+                    wirex2 = halfwidth + layer[6]
 
                 wxn1spec = "{:.4f}".format(-wirex1)
                 wxn2spec = "{:.4f}".format(-wirex2)
@@ -896,8 +900,9 @@ def generate_one_shielded_wire_file(filename, substrate, conductor, metal, width
                 extra.append('')
                 if dheight > 0:
                     extra.append('File k_conformal_' + layer[0] + '_wire')
-                    extra.append('S conform ' + ' 0.0 ' + dspec + ' ' + wxn2spec + ' ' + dspec) 
-                    extra.append('S conform ' + wxn2spec + ' ' + dspec + ' ' + wxn2spec + ' ' + wyspec) 
+                    if refmetal != conductor:
+                        extra.append('S conform ' + ' -40.0 ' + dspec + ' ' + wxn2spec + ' ' + dspec) 
+                        extra.append('S conform ' + wxn2spec + ' ' + dspec + ' ' + wxn2spec + ' ' + wyspec) 
                     extra.append('S conform ' + wxn2spec + ' ' + wyspec + ' ' + wx2spec + ' ' + wyspec) 
                     extra.append('S conform ' + wx2spec + ' ' + wyspec + ' ' + wx2spec + ' ' + dspec) 
                     extra.append('S conform ' + wx2spec + ' ' + dspec + ' 40.0 ' + dspec) 

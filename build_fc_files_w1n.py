@@ -239,7 +239,8 @@ def build_fc_files_w1n(stackupfile, metallist, condlist, widths, outfile, tolera
 
         elif done:
             # Note:  Where g01 != g10, use the average value.
-            ccoup = -(g01 + g10) / 2.0
+            # ccoup = -(g01 + g10) / 2.0
+            ccoup = -g10
             scoup = "{:.5g}".format(ccoup)
             print('Result:  Ccoup=' + scoup)
 

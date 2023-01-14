@@ -246,7 +246,8 @@ def build_fc_files_w2o(stackupfile, metal1list, metal2list, widths1, widths2, se
         elif done:
             m1sub = g00 + g01
             m2sub = g10 + g11
-            ccoup = -(g01 + g10) / 2
+            # ccoup = -(g01 + g10) / 2
+            ccoup = -g10
 
             scoup = "{:.5g}".format(ccoup)
             sm1sub = "{:.5g}".format(m1sub)

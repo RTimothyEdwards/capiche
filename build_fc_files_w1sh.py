@@ -239,7 +239,8 @@ def build_fc_files_w1sh(stackupfile, metallist, condlist, subname, widths, seps,
         elif done:
             msub = g00 + g01
             csub = g10 + g11
-            ccoup = -(g01 + g10) / 2
+            # ccoup = -(g01 + g10) / 2
+            ccoup = -g01
 
             scoup = "{:.5g}".format(ccoup)
             smsub = "{:.5g}".format(msub)

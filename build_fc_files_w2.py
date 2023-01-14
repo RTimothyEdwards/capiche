@@ -239,7 +239,8 @@ def build_fc_files_w2(stackupfile, metallist, condlist, widths, seps, outfile, t
 
         elif done:
             cdiag = (g00 + g11) / 2
-            ccoup = -(g01 + g10) / 2
+            # ccoup = -(g01 + g10) / 2
+            ccoup = -g10
             csub = cdiag - ccoup
 
             scoup = "{:.5g}".format(ccoup)
