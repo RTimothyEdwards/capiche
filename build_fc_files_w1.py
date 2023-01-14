@@ -251,18 +251,26 @@ def build_fc_files_w1(stackupfile, metallist, condlist, widths, outfile, toleran
         return 0
 
     # Make sure the output directory exists
-    outdir = os.path.split(outfile)[0]
-    if outdir != '':
-        os.makedirs(outdir, exist_ok=True)
+    if outfile:
+        outdir = os.path.split(outfile)[0]
+        if outdir != '':
+            os.makedirs(outdir, exist_ok=True)
 
+        with open(outfile, 'w') as ofile:
+            for presult in presults:
+                metal = presult[0]
+                conductor = presult[1]
+                swidth = "{:.4f}".format(presult[2])
+                ssub = "{:.5g}".format(presult[3])
+                print(metal + ' ' + conductor + ' ' + swidth + ' ' + ssub, file=ofile)
+
+    # Also print results to the terminal
     print('Results:')
-    with open(outfile, 'w') as ofile:
         for presult in presults:
             metal = presult[0]
             conductor = presult[1]
             swidth = "{:.4f}".format(presult[2])
             ssub = "{:.5g}".format(presult[3])
-            print(metal + ' ' + conductor + ' ' + swidth + ' ' + ssub, file=ofile)
             print(metal + ' ' + conductor + ' ' + swidth + ' ' + ssub)
 
     return 0
@@ -292,7 +300,7 @@ if __name__ == '__main__':
     wstart = 0
     wstop = 0
     wstep = 0
-    outfile = 'results/w1_results.txt'
+    outfile = None
     tolerance = 0.01
     verbose = 0
 

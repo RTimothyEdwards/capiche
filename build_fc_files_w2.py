@@ -265,22 +265,32 @@ def build_fc_files_w2(stackupfile, metallist, condlist, widths, seps, outfile, t
         print('No results to save or print.')
         return 0
 
-    # Make sure the output directory exists
-    outdir = os.path.split(outfile)[0]
-    if outdir != '':
-        os.makedirs(outdir, exist_ok=True)
+    if outfile:
+        # Make sure the output directory exists
+        outdir = os.path.split(outfile)[0]
+        if outdir != '':
+            os.makedirs(outdir, exist_ok=True)
 
+        with open(outfile, 'w') as ofile:
+            for presult in presults:
+                metal = presult[0]
+                conductor = presult[1]
+                swidth = "{:.4f}".format(presult[2])
+                ssep = "{:.4f}".format(presult[3])
+                ssub = "{:.5g}".format(presult[4])
+                scoup = "{:.5g}".format(presult[5])
+                print(metal + ' ' + conductor + ' ' + swidth + ' ' + ssep + ' ' + ssub + ' ' + scoup, file=ofile)
+
+    # Also print results to the terminal
     print('Results:')
-    with open(outfile, 'w') as ofile:
-        for presult in presults:
-            metal = presult[0]
-            conductor = presult[1]
-            swidth = "{:.4f}".format(presult[2])
-            ssep = "{:.4f}".format(presult[3])
-            ssub = "{:.5g}".format(presult[4])
-            scoup = "{:.5g}".format(presult[5])
-            print(metal + ' ' + conductor + ' ' + swidth + ' ' + ssep + ' ' + ssub + ' ' + scoup, file=ofile)
-            print(metal + ' ' + conductor + ' ' + swidth + ' ' + ssep + ' ' + ssub + ' ' + scoup)
+    for presult in presults:
+        metal = presult[0]
+        conductor = presult[1]
+        swidth = "{:.4f}".format(presult[2])
+        ssep = "{:.4f}".format(presult[3])
+        ssub = "{:.5g}".format(presult[4])
+        scoup = "{:.5g}".format(presult[5])
+        print(metal + ' ' + conductor + ' ' + swidth + ' ' + ssep + ' ' + ssub + ' ' + scoup)
 
     return 0
 
@@ -313,7 +323,7 @@ if __name__ == '__main__':
     sstart = 0
     sstop = 0
     sstep = 0
-    outfile = 'results/w2_results.txt'
+    outfile = None
     verbose = 0
     tolerance = 0.01
 

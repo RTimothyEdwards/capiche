@@ -261,19 +261,27 @@ def build_fc_files_w1n(stackupfile, metallist, condlist, widths, outfile, tolera
         print('No results to save or print.')
         return 0
 
-    # Make sure the output directory exists
-    outdir = os.path.split(outfile)[0]
-    if outdir != '':
-        os.makedirs(outdir, exist_ok=True)
+    if outfile:
+        # Make sure the output directory exists
+        outdir = os.path.split(outfile)[0]
+        if outdir != '':
+            os.makedirs(outdir, exist_ok=True)
 
-    print('Results:')
-    with open(outfile, 'w') as ofile:
+        with open(outfile, 'w') as ofile:
+            for presult in presults:
+                metal = presult[0]
+                conductor = presult[1]
+                swidth = "{:.4f}".format(presult[2])
+                scoup = "{:.5g}".format(presult[3])
+                print(metal + ' ' + conductor + ' ' + swidth + ' ' + scoup, file=ofile)
+
+    # Also print results to the terminal
+        print('Results:')
         for presult in presults:
             metal = presult[0]
             conductor = presult[1]
             swidth = "{:.4f}".format(presult[2])
             scoup = "{:.5g}".format(presult[3])
-            print(metal + ' ' + conductor + ' ' + swidth + ' ' + scoup, file=ofile)
             print(metal + ' ' + conductor + ' ' + swidth + ' ' + scoup)
 
     return 0
@@ -304,7 +312,7 @@ if __name__ == '__main__':
     wstop = 0
     wstep = 0
     substrate = None
-    outfile = 'results/w1n_results.txt'
+    outfile = None
     verbose = 0
     tolerance = 0.01
 

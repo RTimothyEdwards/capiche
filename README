@@ -253,65 +253,398 @@ widths and spacings to simulate.
 This variable is used to map names used in Capiche to layer names
 used in magic.
 
------------------------------------------------------------------------
-Script procedures:
+------------------------------------------------------------------------
 
-Capiche can be run with the "compute_coefficients.py" top level
-script.  However, it is also designed to be imported into a Python
-interpreter, where all routines can be called directly.  The
-main routines defined by Capiche are:
+Lower level routines (imported and called from compute_coefficients.py):
+------------------------------------------------------------------------
 
-FasterCap simulation routines:
+	build_fc_files_w1(stackupfile, metallist, condlist, widths, outfile,
+			tolerance, verbose=0)
 
-	generate_areacap(process, stackupfile, verbose=0)
-	generate_fringe(process, stackupfile, metals, substrates,
-			limits, verbose=0)
-	generate_sidewall(process, stackupfile, metals, substrates,
-			limits, verbose=0)
-	generate_fringeshield(process, stackupfile, metals, substrates,
-			limits, verbose=0)
-	generate_fringepartial(process, stackupfile, metals, substrates,
-			limits, verbose=0)
+	       stackupfile = name of the script file with the metal
+			stack definition
+	       metallist = list of metals to test as wires
+	       condlist = list of conductors/substrates to test
+	       widths = list with wire widths to test
+	       outfile = name of output file with results
+	       tolerance = initial tolerance to use for FasterCap
+	       verbose = diagnostic output level
 
-Coefficient computations:
+	    Output:  A file (or printed output) with entries:
 
-	compute_areacap(process)
-	compute_fringe(process, metals, substrates, areacap, size)
-	compute_sidewall(process, metals)
-	compute_fringeshield(process, metals, substrates, areacap, fringe10)
-	compute_fringepartial(process, metals, limits, areacap, fringe)
+		<metal> <cond> <width> <Ccoup>
 
-Magic extraction routines:
+		    where <width> is the metal wire width in microns and
+		    <Ccoup> is the coupling between <metal> and <cond> in uF.
 
-	validate_fringe(process, stackupfile, startupfile, metals, substrates,
-			limits, verbose=0)
-	validate_sidewall(process, stackupfile, startupfile, metals, substrates,
-			limits, verbose=0)
-	validate_fringeshield(process, stackupfile, startupfile, metals, substrates,
-			limits, verbose=0)
-	validate_fringepartial(process, stackupfile, startupfile, metals, substrates,
-			limits, verbose=0)
-
-Coefficient print/load/save:
-
-	print_coefficients(metals, substrates, areacap, fringe, sidewall,
-			fringeshield, fringepartial)
-	save_coefficients(metals, substrates, areacap, fringe, sidewall,
-			fringeshield, fringepartial, outfile)
-	load_coefficients(infile)
-
-Plot generation:
-
-	plot_sidewall(process, metal, sidewall)
-	plot_fringeshield(process, metal, cond, areacap, fringe, fringeshield)
-	plot_fringepartial(process, metal, cond, areacap, fringe, fringepartial)
+	    Description:  This routine generates an input file for
+		FasterCap representing the 2D cross-section of a single
+		metal wire over a conducting plane, where the conducting
+		plane may be another metal or a substrate type.  FasterCap
+		calculates the total coupling capacitance (per unit length)
+		between the wire and the conductor/substrate.  This routine
+		is used to find the maximum fringe capacitance per unit
+		length (by substracting the area capacitance from the result
+		and dividing by 2)
 	
+	build_fc_files_w1n(stackupfile, metallist, condlist, widths, outfile,
+			tolerance, verbose=0):
+
+	       stackupfile = name of the script file with the metal
+	               stack definition
+	       metallist = list of metals to test as wires
+	       condlist = list of conductors/substrates to test
+	       widths = list with wire widths to test
+	       outfile = name of output file with results
+	       tolerance = initial tolerance to use for FasterCap
+	       verbose = diagnostic output level
+
+	    Output:  A file (or printed output) with entries:
+
+		<metal> <cond> <width> <Ccoup>
+
+		    where <width> is the metal wire width in microns and
+		    <Ccoup> is the coupling between <metal> and <cond> in uF.
+	
+	    Description:  This routine generates an input file for
+		FasterCap representing the 2D cross-section of a single
+		metal wire under a conducting plane, where the conducting
+		plane is another metal higher than the first.  FasterCap
+		calculates the total coupling capacitance (per unit length)
+		between the wire and the conductor above.
+	
+	build_fc_files_w1sh(stackupfile, metallist, condlist, subname, widths,
+			seps, outfile, tolerance, verbose=0):
+
+	       stackupfile = name of the script file with the metal
+	               stack definition
+	       metallist = list of metals to test as wires
+	       condlist = list of conductors/substrates to test as shields
+	       subname = name of the substrate type to use
+	       widths = list with wire widths to test
+	       seps = list with wire-to-shield separations to test
+	       outfile = name of output file with results
+	       tolerance = initial tolerance to use for FasterCap
+	       verbose = diagnostic output level
+
+	    Output:  A file (or printed output) with entries:
+
+		<metal> <cond> <width> <sep> <Cmsub> <Ccsub> <Ccoup>
+
+		    where <width> is the metal wire width in microns, <sep>
+		    is the distance from the wire center to the edge of the
+		    conductor underneath, <Cmsub> is the coupling from
+		    <metal> to substrate, in uF;  <Ccsub> is the coupling
+		    from <cond> to substrate, in uF; and <Ccoup> is the
+		    coupling between <metal> and <cond> in uF.
+	
+	    Description:  This routine generates an input file for
+		FasterCap representing the 2D cross-section of a single
+		metal wire over a conducting shield wire, where the shield
+		wire is another metal lower than the first, and where
+		the left side of the shield wire extends far to the left
+		(placed at -40um), and the right side of the shield wire
+		terminates at a given distance from the wire center, with
+		negative values representing increasing overlap to the
+		right, and positive values representing increasing spacing
+		to the left (note that the sign of the separation is the
+		negative of the edge position on the X axis).  FasterCap
+		calculates the total coupling capacitance (per unit length)
+		between the wire and the shield below.  This routine is
+		used to determine how much of the total fringe capacitance
+		of a wire is incident upon a wire underneath, depending on
+		how far the wire underneath extends into the fringing
+		field.
+
+	build_fc_files_w2(stackupfile, metallist, condlist, widths, seps,
+			outfile, tolerance, verbose=0)
+
+	       stackupfile = name of the script file with the metal
+	               stack definition
+	       metallist = list of metals to test as wires
+	       condlist = list of conductors/substrates to test as shields
+	       widths = list with wire widths to test
+	       seps = list with wire-to-shield separations to test
+	       outfile = name of output file with results
+	       tolerance = initial tolerance to use for FasterCap
+	       verbose = diagnostic output level
+
+	    Output:  A file (or printed output) with entries:
+
+		<metal> <cond> <width> <sep> <Cmsub> <Ccoup>
+
+		    where <width> is the metal wire width in microns, <sep>
+		    is the spacing between the two wires; <Cmsub> is the
+		    coupling from <metal> (either wire) to <cond>, in uF;
+		    and <Ccoup> is the coupling between the wires, in uF.
+	
+	    Description:  This routine generates an input file for
+		FasterCap representing the 2D cross-section of two
+		parallel wires of a given width and separation, over a
+		conducting shield plane.  FasterCap calculates the total
+		coupling capacitance (per unit length) between the two
+		wires and, between one of the wires and the shield below.
+		This routine is used to determine sidewall capacitance
+		between neighboring wires on the same plane, and to
+		determine the shielding effect of a neighboring wire on
+		the amount of fringe capacitance to a conductor below.
+
+	build_fc_files_w2o(stackupfile, metal1list, metal2list, widths1,
+			widths2, seps, outfile, tolerance, verbose=0)
+
+	       stackupfile = name of the script file with the metal
+	               stack definition
+	       metal1list = 1st list of metals to test as wires
+	       metal2list = 2nd list of metals to test as wires
+	       widths1 = list with 1st metal wire widths to test
+	       widths2 = list with 2nd metal wire widths to test
+	       seps = list with wire1-to-wire2 separations to test
+	       outfile = name of output file with results
+	       tolerance = initial tolerance to use for FasterCap
+	       verbose = diagnostic output level
+
+	    Output:  A file (or printed output) with entries:
+
+		<metal1> <metal2> <width1> <width2> <sep> <Cm1sub> <Cm2sub> <Ccoup>
+
+		    where <width1> is the wire width of <metal1> in microns,
+		    <width2> is the wire width of <metal2> in microns, <sep>
+		    is the lateral spacing between the two wires; <Cm1sub> is
+		    the coupling from <metal1> to substrate, in uF; <Cm2sub>
+		    is the coupling from <metal2> to substrate, in uF; and
+		    <Ccoup> is the coupling between <metal1> and <metal2>, in uF.
+	
+	    Description:  This routine generates an input file for
+		FasterCap representing the 2D cross-section of two
+		wires of different metal types, each with a given
+		width, and with edges separated by the given lateral
+		separation distance.  FasterCap calculates the coupling
+		capacitance between the wires and the coupling from each
+		wire to the substrate.  It is used to validate parasitic
+		capacitance modeling for any geometry of two wires.
+
+	build_mag_files_w1(stackupfile, startupscript, metallist, condlist,
+			widths, outfile, verbose=0)
+
+	       stackupfile = name of the script file with the metal
+	               stack definition
+	       startupscript = name of the magic startup script
+	       metallist = list of metals to test as wires
+	       condlist = list of conductors/substrates to test
+	       widths = list with wire widths to test
+	       outfile = name of output file with results
+	       verbose = diagnostic output level
+
+	    Output:  A file (or printed output) with entries:
+
+		<metal> <cond> <width> <Ccoup>
+
+		    where <width> is the metal wire width in microns and
+		    <Ccoup> is the coupling between <metal> and <cond> in uF.
+
+	    Description:  This file corresponds to build_fc_files_w1() and
+		build_fc_files_w1n(), but uses magic to construct a layout
+		of the given geometry and extract the parasitics using
+		magic's extraction models for the process.  Instead of a
+		2D model, the geometry is formed from very long wires and
+		the result is divided by the wire length.  There is not a
+		separate routine for conducting planes over vs. under the
+		metal wire, since for layout there is no fundamental
+		difference between drawing a layer that is above the metal wire
+		vs. drawing a layer that is below the metal wire.
+
+	build_mag_files_w1sh(stackupfile, startupscript, metallist, condlist,
+			subname, widths, seps, outfile, verbose=0)
+
+	       stackupfile = name of the script file with the metal
+	               stack definition
+	       startupscript = name of the magic startup script
+	       metallist = list of metals to test as wires
+	       condlist = list of conductors/substrates to test
+	       subname = name of the substrate layer to use
+	       widths = list with wire widths to test
+	       seps = list with wire-to-shield separations to test
+	       outfile = name of output file with results
+	       verbose = diagnostic output level
+
+	    Output:  A file (or printed output) with entries:
+
+		<metal> <cond> <width> <sep> <Cmsub> <Ccsub> <Ccoup>
+
+		    where <width> is the metal wire width in microns, <sep>
+		    is the distance from the wire center to the edge of the
+		    conductor underneath, <Cmsub> is the coupling from
+		    <metal> to substrate, in uF;  <Ccsub> is the coupling
+		    from <cond> to substrate, in uF; and <Ccoup> is the
+		    coupling between <metal> and <cond> in uF.
+	
+	    Description:  This file corresponds to build_fc_files_w1sh(),
+		but uses magic to construct a layout of the given geometry
+		and extract the parasitics using magic's extraction models
+		for the process.  Instead of a 2D model, the geometry is
+		formed from very long wires and the result is divided by
+		the wire length.
+
+	build_mag_files_w2(stackupfile, startupscript, metallist, condlist,
+			widths, seps, outfile, verbose=0)
+
+	       stackupfile = name of the script file with the metal
+	               stack definition
+	       startupscript = name of the magic startup script
+	       metallist = list of metals to test as wires
+	       condlist = list of conductors/substrates to test
+	       widths = list with wire widths to test
+	       seps = list with wire-to-shield separations to test
+	       outfile = name of output file with results
+	       verbose = diagnostic output level
+
+	    Output:  A file (or printed output) with entries:
+
+		<metal> <cond> <width> <sep> <Cmsub> <Ccoup>
+
+		    where <width> is the metal wire width in microns, <sep>
+		    is the spacing between the two wires; <Cmsub> is the
+		    coupling from <metal> (either wire) to <cond>, in uF;
+		    and <Ccoup> is the coupling between the wires, in uF.
+	
+	    Description:  This file corresponds to build_fc_files_w2(),
+		but uses magic to construct a layout of the given geometry
+		and extract the parasitics using magic's extraction models
+		for the process.  Instead of a 2D model, the geometry is
+		formed from very long wires and the result is divided by
+		the wire length.
+
+Lower level routines called as applications:
+---------------------------------------------------
+
+	build_fc_files_w1.py <stack_def_file> [options]
+	    Where:
+		<stack_def_file> is the python script with the metal stack definition.
+	    And where [options] may be one or more of:
+		-metals=<metal>[,...]  (restrict wire type to one or more metals)
+		-conductors=<conductor>[,...] (restrict conductor type to one or
+						more types)
+		-width=<start>,<stop>,<step> (wire width range, in microns)
+		-tol[erance]=<value>         (FasterCap tolerance)
+		-file=<name>                 (output filename for results)
+		-verbose=<level>	     (level of diagnostic output)
+
+	    Output:  See explanation of the build_fc_files_w1() routine above.
+	    Description:  See explanaction of build_fc_files_w1() routine above.
+
+	build_fc_files_w1n.py <stack_def_file> [options]
+	    Where:
+		<stack_def_file> is the python script with the metal stack definition.
+	    And where [options] may be one or more of:
+		-metals=<metal>[,...]    (restrict wire type to one or more metals)
+		-shields=<metal>[,...]   (restrict shield type to one or more metals)
+		-sub[strate]=<substrate> (substrate type)
+		-width=<start>,<stop>,<step> (wire width range, in microns)
+		-tol[erance]=<value>         (FasterCap tolerance)
+		-file=<name>                 (output filename for results)
+		-verbose=<level>	     (level of diagnostic output)
+
+	    Output:  See explanation of the build_fc_files_w1n() routine above.
+	    Description:  See explanaction of build_fc_files_w1n() routine above.
+
+	build_fc_files_w1sh.py <stack_def_file> [options]
+	    Where:
+		<stack_def_file> is the python script with the metal stack definition.
+	    And where [options] may be one or more of:
+		-metals=<metal>[,...]  (restrict wire type to one or more metals)
+		-shields=<metal>[,...] (restrict shield type to one or more metals)
+		-sub[strate]=<substrate>     (substrate type)
+		-width=<start>,<stop>,<step> (wire width range, in microns)
+		-sep=<start>,<stop>,<step>   (separation range, in microns)
+		-tol[erance]=<value>         (FasterCap tolerance)
+		-file=<name>                 (output filename for results)
+		-verbose=<level>	     (level of diagnostic output)
+
+	    Output:  See explanation of the build_fc_files_w1sh() routine above.
+	    Description:  See explanaction of build_fc_files_w1sh() routine above.
+
+	build_fc_files_w2.py <stack_def_file> [options]
+	    Where:
+		<stack_def_file> is the python script with the metal stack definition.
+	    And where [options] may be one or more of:
+		-metals=<metal>[,...]  (restrict wire type to one or more metals)
+		-sub[strate]=<substrate>[,...] (restrict substrate type)
+		-width=<start>,<stop>,<step> (wire width range, in microns)
+		-sep=<start>,<stop>,<step>   (separation range, in microns)
+		-tol[erance]=<value>         (FasterCap tolerance)
+		-file=<name>                 (output filename for results)
+		-verbose=<level>	     (level of diagnostic output)
+
+	    Output:  See explanation of the build_fc_files_w2() routine above.
+	    Description:  See explanaction of build_fc_files_w2() routine above.
+
+	build_fc_files_w2o.py <stack_def_file> [options]
+	    Where:
+		<stack_def_file> is the python script with the metal stack definition.
+	    And where [options] may be one or more of:
+		-metal1=<metal>[,...] (restrict 1st wire type to one or more metals)
+		-metal2=<metal>[,...] (restrict 2nd wire type to one or more metals)
+		-sub[strate]=<substrate>      (substrate type)
+		-width1=<start>,<stop>,<step> (1st wire width range, in microns)
+		-width2=<start>,<stop>,<step> (2nd wire width range, in microns)
+		-sep=<start>,<stop>,<step>    (separation range, in microns)
+		-tol[erance]=<value>          (FasterCap tolerance)
+		-file=<name>                  (output filename for results)
+		-verbose=<level>	     (level of diagnostic output)
+
+	    Output:  See explanation of the build_fc_files_w2o() routine above.
+	    Description:  See explanaction of build_fc_files_w2o() routine above.
+
+	build_mag_files_w1.py <stack_def_file> <magic_startup_script> [options]
+	    Where:
+		<stack_def_file> is the python script with the metal stack definition.
+		<magic_startup_script> is the .magicrc file for the technology
+	    And where [options] may be one or more of:
+		-metals=<metal>[,...]  (restrict wire type to one or more metals)
+		-conductors=<conductor>[,...] (restrict conductor type to one or
+						more types)
+		-width=<start>,<stop>,<step> (wire width range, in microns)
+		-file=<name>                 (output filename for results)
+		-verbose=<level>	     (level of diagnostic output)
+
+	    Output:  See explanation of the build_mag_files_w1() routine above.
+	    Description:  See explanaction of build_mag_files_w1() routine above.
+
+	build_mag_files_w1sh.py <stack_def_file> <magic_startup_script> [options]
+	    Where:
+		<stack_def_file> is the python script with the metal stack definition.
+		<magic_startup_script> is the .magicrc file for the technology
+	    And where [options] may be one or more of:
+		-metals=<metal>[,...]  (restrict wire type to one or more metals)
+		-shields=<metal>[,...]  (restrict shield type to one or more metals)
+		-sub[strate]=<substrate>[,...] (restrict substrate type)
+		-width=<start>,<stop>,<step> (wire width range, in microns)
+		-sep=<start>,<stop>,<step>   (separation range, in microns)
+		-file=<name>                 (output filename for results)
+		-verbose=<level>	     (level of diagnostic output)
+
+	    Output:  See explanation of the build_mag_files_w1sh() routine above.
+	    Description:  See explanaction of build_mag_files_w1sh() routine above.
+
+	build_mag_files_w2.py <stack_def_file> <magic_startup_script> [options]
+	    Where:
+		<stack_def_file> is the python script with the metal stack definition.
+		<magic_startup_script> is the .magicrc file for the technology
+	    And where [options] may be one or more of:
+		-metals=<metal>[,...]  (restrict wire type to one or more metals)
+		-sub[strate]=<substrate>[,...] (restrict substrate type)
+		-width=<start>,<stop>,<step> (wire width range, in microns)
+		-sep=<start>,<stop>,<step>   (separation range, in microns)
+		-file=<name>                 (output filename for results)
+		-verbose=<level>	     (level of diagnostic output)
+	
+	    Output:  See explanation of the build_mag_files_w2() routine above.
+	    Description:  See explanaction of build_mag_files_w2() routine above.
 
 -----------------------------------------------------------------------
 Capiche is a work in progress.
 Work to do:
 -----------------------------------------------------------------------
-(0) Add description of output file formats
 (1) Put new analytic expressions into magic (tanh, arctan models)
 (2) Add command in magic to change the halo for parasitic capacitances
     on the command-line.

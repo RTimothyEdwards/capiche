@@ -273,24 +273,36 @@ def build_fc_files_w2o(stackupfile, metal1list, metal2list, widths1, widths2, se
         print('No results to save or print.')
         return 0
 
-    # Make sure the output directory exists
-    outdir = os.path.split(outfile)[0]
-    if outdir != '':
-        os.makedirs(outdir, exist_ok=True)
+    if outfile:
+        # Make sure the output directory exists
+        outdir = os.path.split(outfile)[0]
+        if outdir != '':
+            os.makedirs(outdir, exist_ok=True)
 
+        with open(outfile, 'w') as ofile:
+            for presult in presults:
+                metal1 = presult[0]
+                metal2 = presult[1]
+                s1width = "{:.4f}".format(presult[2])
+                s2width = "{:.4f}".format(presult[3])
+                ssep = "{:.4f}".format(presult[4])
+                sm1sub = "{:.5g}".format(presult[5])
+                sm2sub = "{:.5g}".format(presult[6])
+                scoup = "{:.5g}".format(presult[7])
+                print(metal1 + ' ' + metal2 + ' ' + s1width + ' ' + s2width + ' ' + ssep + ' ' + sm1sub + ' ' + sm2sub + ' ' + scoup, file=ofile)
+
+    # Also print results to the terminal
     print('Results:')
-    with open(outfile, 'w') as ofile:
-        for presult in presults:
-            metal1 = presult[0]
-            metal2 = presult[1]
-            s1width = "{:.4f}".format(presult[2])
-            s2width = "{:.4f}".format(presult[3])
-            ssep = "{:.4f}".format(presult[4])
-            sm1sub = "{:.5g}".format(presult[5])
-            sm2sub = "{:.5g}".format(presult[6])
-            scoup = "{:.5g}".format(presult[7])
-            print(metal1 + ' ' + metal2 + ' ' + s1width + ' ' + s2width + ' ' + ssep + ' ' + sm1sub + ' ' + sm2sub + ' ' + scoup, file=ofile)
-            print(metal1 + ' ' + metal2 + ' ' + s1width + ' ' + s2width + ' ' + ssep + ' ' + sm1sub + ' ' + sm2sub + ' ' + scoup)
+    for presult in presults:
+        metal1 = presult[0]
+        metal2 = presult[1]
+        s1width = "{:.4f}".format(presult[2])
+        s2width = "{:.4f}".format(presult[3])
+        ssep = "{:.4f}".format(presult[4])
+        sm1sub = "{:.5g}".format(presult[5])
+        sm2sub = "{:.5g}".format(presult[6])
+        scoup = "{:.5g}".format(presult[7])
+        print(metal1 + ' ' + metal2 + ' ' + s1width + ' ' + s2width + ' ' + ssep + ' ' + sm1sub + ' ' + sm2sub + ' ' + scoup)
 
     return 0
 
@@ -328,7 +340,7 @@ if __name__ == '__main__':
     sstop = 0
     sstep = 0
     substrate = None
-    outfile = 'results/w2o_results.txt'
+    outfile = None
     verbose = 0
     tolerance = 0.01
 
