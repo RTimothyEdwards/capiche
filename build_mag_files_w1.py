@@ -250,18 +250,26 @@ def build_mag_files_w1(stackupfile, startupscript, metallist, condlist, widths, 
         print('No results to save or print.')
         return 0
 
-    # Make sure the output directory exists
-    os.makedirs(os.path.split(outfile)[0], exist_ok=True)
+    if outfile:
+        # Make sure the output directory exists
+        os.makedirs(os.path.split(outfile)[0], exist_ok=True)
 
+        with open(outfile, 'w') as ofile:
+            for presult in presults:
+                metal = presult[0]
+                conductor = presult[1]
+                swidth = "{:.4f}".format(presult[2])
+                ssub = "{:.5g}".format(presult[3])
+                print(metal + ' ' + conductor + ' ' + swidth + ' ' + ssub, file=ofile)
+
+    # Also print results to the terminal
     print('Results:')
-    with open(outfile, 'w') as ofile:
-        for presult in presults:
-            metal = presult[0]
-            conductor = presult[1]
-            swidth = "{:.4f}".format(presult[2])
-            ssub = "{:.5g}".format(presult[3])
-            print(metal + ' ' + conductor + ' ' + swidth + ' ' + ssub, file=ofile)
-            print(metal + ' ' + conductor + ' ' + swidth + ' ' + ssub)
+    for presult in presults:
+        metal = presult[0]
+        conductor = presult[1]
+        swidth = "{:.4f}".format(presult[2])
+        ssub = "{:.5g}".format(presult[3])
+        print(metal + ' ' + conductor + ' ' + swidth + ' ' + ssub)
 
     return 0
 
@@ -290,7 +298,7 @@ if __name__ == '__main__':
     wstart = 0
     wstop = 0
     wstep = 0
-    outfile = 'results/w1_results.txt'
+    outfile = None
     verbose = 0
 
     for option in options:

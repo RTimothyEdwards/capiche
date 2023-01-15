@@ -274,21 +274,32 @@ def build_mag_files_w1sh(stackupfile, startupscript, metallist, condlist, subnam
         print('No results to save or print.')
         return 0
 
-    # Make sure the output directory exists
-    os.makedirs(os.path.split(outfile)[0], exist_ok=True)
+    if outfile:
+        # Make sure the output directory exists
+        os.makedirs(os.path.split(outfile)[0], exist_ok=True)
 
+        with open(outfile, 'w') as ofile:
+            for presult in presults:
+                metal = presult[0]
+                conductor = presult[1]
+                swidth = "{:.4f}".format(presult[2])
+                ssep = "{:.4f}".format(presult[3])
+                smsub = "{:.5g}".format(presult[4])
+                scsub = "{:.5g}".format(presult[5])
+                scoup = "{:.5g}".format(presult[6])
+                print(metal + ' ' + conductor + ' ' + swidth + ' ' + ssep + ' ' + smsub + ' ' + scsub + ' ' + scoup, file=ofile)
+
+    # Also print results to the terminal
     print('Results:')
-    with open(outfile, 'w') as ofile:
-        for presult in presults:
-            metal = presult[0]
-            conductor = presult[1]
-            swidth = "{:.4f}".format(presult[2])
-            ssep = "{:.4f}".format(presult[3])
-            smsub = "{:.5g}".format(presult[4])
-            scsub = "{:.5g}".format(presult[5])
-            scoup = "{:.5g}".format(presult[6])
-            print(metal + ' ' + conductor + ' ' + swidth + ' ' + ssep + ' ' + smsub + ' ' + scsub + ' ' + scoup, file=ofile)
-            print(metal + ' ' + conductor + ' ' + swidth + ' ' + ssep + ' ' + smsub + ' ' + scsub + ' ' + scoup)
+    for presult in presults:
+        metal = presult[0]
+        conductor = presult[1]
+        swidth = "{:.4f}".format(presult[2])
+        ssep = "{:.4f}".format(presult[3])
+        smsub = "{:.5g}".format(presult[4])
+        scsub = "{:.5g}".format(presult[5])
+        scoup = "{:.5g}".format(presult[6])
+        print(metal + ' ' + conductor + ' ' + swidth + ' ' + ssep + ' ' + smsub + ' ' + scsub + ' ' + scoup)
 
     return 0
 
@@ -322,7 +333,7 @@ if __name__ == '__main__':
     sstop = 0
     sstep = 0
     substrate = None
-    outfile = 'results/w1sh_results.txt'
+    outfile = None
     verbose = 0
 
     for option in options:

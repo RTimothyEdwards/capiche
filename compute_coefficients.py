@@ -390,9 +390,9 @@ def compute_sidewall(process, metals):
                     xdata.append(float(tokens[3]))
                     ydata.append(float(tokens[5]))
 
-        # Use scipy least_squares to do a nonlinear curve fit to y = b / (x - c)
+        # Use scipy least_squares to do a nonlinear curve fit to y = b / (x + c)
         def func1(x, b, c):
-            return b / (x - c)
+            return b / (x + c)
 
         # curve_fit needs a seed value somewhere in the range of sanity
         p0 = [1e-11, 0]

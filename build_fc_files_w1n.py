@@ -276,13 +276,13 @@ def build_fc_files_w1n(stackupfile, metallist, condlist, widths, outfile, tolera
                 print(metal + ' ' + conductor + ' ' + swidth + ' ' + scoup, file=ofile)
 
     # Also print results to the terminal
-        print('Results:')
-        for presult in presults:
-            metal = presult[0]
-            conductor = presult[1]
-            swidth = "{:.4f}".format(presult[2])
-            scoup = "{:.5g}".format(presult[3])
-            print(metal + ' ' + conductor + ' ' + swidth + ' ' + scoup)
+    print('Results:')
+    for presult in presults:
+        metal = presult[0]
+        conductor = presult[1]
+        swidth = "{:.4f}".format(presult[2])
+        scoup = "{:.5g}".format(presult[3])
+        print(metal + ' ' + conductor + ' ' + swidth + ' ' + scoup)
 
     return 0
 
