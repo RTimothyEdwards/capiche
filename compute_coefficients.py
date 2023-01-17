@@ -46,6 +46,8 @@
 import os
 import sys
 import numpy
+import time
+import datetime
 try:
     import scipy
 except:
@@ -444,25 +446,33 @@ def compute_fringeshield(process, metals, substrates, areacap, fringe10):
                     tokens = line.split()
                     # Already know the first three entries.  Get the fourth entry (separation)
                     # for xdata and the sixth entry (coupling) for ydata
-                    ycdata = float(tokens[4]) * 1e12
-                    yvalue = (ycdata - platecap - totfringe) / totfringe
-                    if yvalue < 1:
-                        xdata.append(float(tokens[3]))
-                        ydata.append(yvalue)
+                    # ycdata = float(tokens[4]) * 1e12
+                    # yvalue = (ycdata - platecap - totfringe) / totfringe
+                    # if yvalue < 1:
+                    #   xdata.append(float(tokens[3]))
+                    #   ydata.append(yvalue)
+                    xdata.append(float(tokens[3]))
+                    ydata.append(float(tokens[4]))
 
             # Use scipy least_squares to do a nonlinear curve fit to y = tanh(e * (x + f))
-            def func2(x, e, f):
-                return numpy.tanh(e * (x + f))
+            # def func2(x, e, f):
+            #   return numpy.tanh(e * (x + f))
+
+            def func2(x, a, b, c, d):
+                return a + b * 0.6366 * numpy.arctan(c * (x + d))
 
             try:
-                params, _ = scipy.optimize.curve_fit(func2, xdata, ydata)
+                # p0 = [0.2, 1.0]
+                p0 = [ydata[0], ydata[-1] - ydata[0], 1, 0]
+                params, _ = scipy.optimize.curve_fit(func2, xdata, ydata, p0=p0)
             except:
                 # Warning:  This works around an issue with running curve fitting that
                 # needs to be investigated.
                 fringeshield[metal + '+' + conductor] = (0, 0)
             else:
                 # Save results.  Value E is unitless and F is in microns.
-                fringeshield[metal + '+' + conductor] = (params[0], params[1])
+                # fringeshield[metal + '+' + conductor] = (params[0], params[1])
+                fringeshield[metal + '+' + conductor] = (params[2], params[3])
 
     return fringeshield
     
@@ -504,28 +514,26 @@ def compute_fringepartial(process, metals, limits, areacap, fringe):
             totfringe = fringe[metal + '+' + conductor]
             halfwidth = minwidth / 2
 
-            # XXX WIP XXX
-            print('compute_fringepartial: ' + metal + ' to ' + conductor) 
-            print('   platecap   = ' + '{:.3f}'.format(platecap))
-            print('   totfringe  = ' + '{:.3f}'.format(totfringe))
-            print('   last ydata = ' + '{:.3f}'.format(ycdata[-1]))
-
             xdata = []
             for x in xcdata:
                 xdata.append(-(x + halfwidth))
 
-            ydata = []
-            for y in ycdata:
-                ydata.append((y - platecap - totfringe) / totfringe)
+            # ydata = []
+            # for y in ycdata:
+            #     ydata.append((y - platecap - totfringe) / totfringe)
 
             # Use scipy least_squares to do a nonlinear curve fit to y = 0.6366 * atan(g * (x + h))
-            def func3(x, g, h):
-                return 0.6366 * numpy.arctan(g * (x + h))
+            def func3(x, a, b, c, d):
+                return a + b * 0.6366 * numpy.arctan(c * (x + d))
 
-            params, _ = scipy.optimize.curve_fit(func3, xdata, ydata)
+            p0 = [ycdata[0], ycdata[-1] - ycdata[0], 1, 0]
+            # params, _ = scipy.optimize.curve_fit(func3, xdata, ydata, p0=p0)
+            params, _ = scipy.optimize.curve_fit(func3, xdata, ycdata, p0=p0)
 
             # Save results.  Value G is unitless and H is in microns.
-            fringepartial[metal + '+' + conductor] = (params[0], params[1])
+            # The first two parameters represent the constant area cap and fringe on the
+            # left-hand side of the wire.
+            fringepartial[metal + '+' + conductor] = (params[2], params[3])
 
     return fringepartial
     
@@ -1032,7 +1040,8 @@ def plot_fringeshield(process, metal, cond, areacap, fringe, fringeshield):
 
     ftest = []
     for sval in sep1:
-        frac = numpy.tanh(fsmult * (sval + fsoffset))
+        # frac = numpy.tanh(fsmult * (sval + fsoffset))
+        frac = 0.6366 * numpy.arctan(fsmult * (sval + fsoffset))
         ftest.append((carea + cfringe * (1 + frac)) / ctotal)
 
     # Now plot all three results using matplotlib
@@ -1163,6 +1172,20 @@ def plot_fringepartial(process, metal, cond, areacap, fringe, fringepartial):
     canvas.print_figure(process + '/plots/fringepartial/' + metal + '_' + cond + '.svg',
 		bbox_inches = 'tight', bbox_extra_artists = [legend])
 
+#---------------------------------------------------------------
+# Simple routines to print out the current time and elapsed time
+#---------------------------------------------------------------
+
+def print_elapsed_time(tstart, verbose):
+    if verbose > 0:
+        ftime = '{:.0f}'.format(time.time() - tstart)
+        print('Elapsed time: ' + ftime + ' seconds.') 
+
+def print_current_time(verbose):
+    if verbose > 0:
+        ftime = datetime.datetime.now().strftime('%m/%d/%Y %H:%M:%S')
+        print('Current datestamp: ' + ftime)
+
 #--------------------------------------------------------------
 # Invoke compute_coefficients.py as an application
 #--------------------------------------------------------------
@@ -1250,14 +1273,25 @@ if __name__ == '__main__':
   
     metals, substrates = generate_layers(layers)
 
+    tstart = time.time()
     if verbose > 0:
         print('Generating result files.')
 
+    print_current_time(verbose)
     generate_areacap(process, stackupfile, verbose)
     generate_fringe(process, stackupfile, metals, substrates, limits, verbose)
+    print_elapsed_time(tstart, verbose)
     generate_sidewall(process, stackupfile, metals, substrates, limits, verbose)
+    print_elapsed_time(tstart, verbose)
     generate_fringeshield(process, stackupfile, metals, substrates, limits, verbose)
+    print_elapsed_time(tstart, verbose)
     generate_fringepartial(process, stackupfile, metals, substrates, limits, verbose)
+    print_elapsed_time(tstart, verbose)
+
+    if verbose > 0:
+        print('Done.')
+
+    print_current_time(verbose)
 
     if verbose > 0:
         print('Computing coefficients.')
@@ -1270,8 +1304,10 @@ if __name__ == '__main__':
     fringepartial = compute_fringepartial(process, metals, limits, areacap, fringe)
 
     if verbose > 0:
-        print('')
+        print('Done.\n')
 
+    print_current_time(verbose)
+    print('')
     print('Process stackup ' + stackupfile + ' coefficients:')
     print_coefficients(metals, substrates, areacap, fringe, sidewall, fringeshield, fringepartial)
     save_coefficients(metals, substrates, areacap, fringe, sidewall, fringeshield, fringepartial, process + '/analysis/coefficients.txt')
@@ -1285,14 +1321,21 @@ if __name__ == '__main__':
             print('Validating results against magic tech file:')
 
         validate_fringe(process, stackupfile, startupfile, metals, substrates, limits, verbose)
+        print_elapsed_time(tstart, verbose)
         validate_sidewall(process, stackupfile, startupfile, metals, substrates, limits, verbose)
+        print_elapsed_time(tstart, verbose)
         validate_fringeshield(process, stackupfile, startupfile, metals, substrates, limits, verbose)
+        print_elapsed_time(tstart, verbose)
         validate_fringepartial(process, stackupfile, startupfile, metals, substrates, limits, verbose)
+        print_elapsed_time(tstart, verbose)
+        if verbose > 0:
+            print('Done.')
     else:
         print('No magic startup file found for process ' + process + '.  Not validating results.')
 
     # Test plots
     if have_matplotlib:
+        print('Generating plots:')
         for metal in metals:
             plot_sidewall(process, metal, sidewall)
             for cond in substrates:
@@ -1301,5 +1344,11 @@ if __name__ == '__main__':
             for cond in metals:
                 plot_fringeshield(process, metal, cond, areacap, fringe10, fringeshield)
                 plot_fringepartial(process, metal, cond, areacap, fringe10, fringepartial)
+        if verbose > 0:
+            print('Done.')
+    else:
+        print('No matplotlib package;  skipping plot generation.')
 
+    print_current_time(verbose)
+    print_elapsed_time(tstart, verbose)
     sys.exit(0)

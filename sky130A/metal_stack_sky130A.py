@@ -70,7 +70,7 @@ layers['nild6']  = ['k', 4.0, 'nild5']
 layers['m5']     = ['m', 5.3711, 1.26, 'nild6', 'topox']
 layers['topox']  = ['s', 3.9, 0.09, 0.07, 'm5'] 
 layers['topnit'] = ['c', 7.5, 0.54, 0.4223, 0.3777, 'topox']
-layers['air']    = ['k', 1.0, 'topnit']
+layers['air']    = ['k', 3.0, 'topnit']
 
 #
 # Define metal width and spacing minimum limits.
