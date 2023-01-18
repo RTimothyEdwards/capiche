@@ -175,7 +175,7 @@ def build_mag_files_w1(stackupfile, startupscript, metallist, condlist, widths, 
                 wsspec = "{:.2f}".format(width).replace('.', 'p')
                 filename = process + '/magic_files/w1/' + metal + '_' + conductor + '_w_' + wsspec + '.tcl'
                 with open(filename, 'w') as ofile:
-                    print('load test', file=ofile)
+                    print('load test -silent', file=ofile)
                     print('box values 0 0 ' + wspec + 'um 1000um', file=ofile)
                     print('paint ' + mmetal, file=ofile)
                     print('label A c ' + mmetal, file=ofile)
@@ -218,6 +218,7 @@ def build_mag_files_w1(stackupfile, startupscript, metallist, condlist, widths, 
             # Remove the .ext file
             os.remove('test.ext')
             # Read output SPICE file
+            csub = 0.0
             with open('test.spice', 'r') as ifile:
                 spicelines = ifile.read().splitlines()
                 for line in spicelines:
@@ -230,7 +231,7 @@ def build_mag_files_w1(stackupfile, startupscript, metallist, condlist, widths, 
             # Remove the SPICE file
             os.remove('test.spice')
 
-            scsub = "{:.2f}".format(csub)
+            scsub = "{:.5g}".format(csub)
             print('Result:  Csub=' + scsub)
 
             # Add to results

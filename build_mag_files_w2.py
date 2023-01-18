@@ -179,13 +179,13 @@ def build_mag_files_w2(stackupfile, startupscript, metallist, condlist, widths, 
                     wspec = "{:.2f}".format(width).replace('.', 'p')
                     filename = process + '/magic_files/w2/' + metal + '_' + conductor + '_w_' + wspec + '_s_' + sspec + '.tcl'
                     with open(filename, 'w') as ofile:
-                        print('load test', file=ofile)
+                        print('load test -silent', file=ofile)
                         print('box values -' + xspec2 + 'um 0 -' + xspec1 + 'um 1000um', file=ofile)
                         print('paint ' + mmetal, file=ofile)
                         print('label A c ' + mmetal, file=ofile)
                         print('box values ' + xspec1 + 'um 0 ' + xspec2 + 'um 1000um', file=ofile)
                         print('paint ' + mmetal, file=ofile)
-                        print('label B c ' + mcond, file=ofile)
+                        print('label B c ' + mmetal, file=ofile)
 
                         print('box values -60um -40um 60um 1040um', file=ofile)
                         print('paint ' + mcond, file=ofile)
@@ -244,8 +244,8 @@ def build_mag_files_w2(stackupfile, startupscript, metallist, condlist, widths, 
             # Remove the SPICE file
             os.remove('test.spice')
 
-            sccoup = "{:.2f}".format(ccoup)
-            scsub = "{:.2f}".format(csub)
+            sccoup = "{:.5g}".format(ccoup)
+            scsub = "{:.5g}".format(csub)
             print('Result:  Ccoup=' + sccoup + '  Csub=' + scsub)
 
             # Add to results

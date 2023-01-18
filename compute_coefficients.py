@@ -13,7 +13,7 @@
 # 1.  Parallel plate capacitance (aF/um^2) = A
 # 2.  Sidewall capacitance (aF/um) = B / (sep - C)
 # 3.  Total fringe capacitance (aF/um) = D
-# 4.  Fringe capacitance with near-body shielding = D * tanh(E * (sep + F))
+# 4.  Fringe capacitance with near-body shielding = D * (2/pi) * atan(E * (sep + F))
 # 5.  Partial fringe capacitance = D * (2/pi) * atan(G * (x + H))
 # 
 # How to find:
@@ -29,7 +29,7 @@
 # E, F: Use build_fc_files_w2.py (results/w2_results.txt).  For a given wire
 #       width (result file 3rd column), get total fringe (5th column) vs.
 #       separation.  Subtract ((A * wire width) + D) to get the fringe cap
-#       on the shielded side only.  Curve fit to D * tanh(E * (sep + F)).
+#       on the shielded side only.  Curve fit to D * (2/pi) * atan(E * (sep + F)).
 # G, H: Use build_fc_files_w1sh.py (results/w1sh_results.txt).  For a given
 #       wire width (result file 3rd column), get coupling cap (7th column)
 #       vs. shield edge separation (4th column).  Take -(x + 1/2 wire width)
@@ -409,11 +409,12 @@ def compute_sidewall(process, metals):
 # Get coefficients E and F (with curve fitting)
 #-------------------------------------------------------------------------
 
-def compute_fringeshield(process, metals, substrates, areacap, fringe10):
+def compute_fringeshield(process, metals, limits, substrates, areacap, fringe10):
 
     # More analysis through curve fitting using scipy
     # Fringe capacitance shielding (fraction) fits a curve
-    # F_shield = tanh(E * (sep + F)) to get coefficients E and F for modeling
+    # F_shield = (2/pi) * atan(E * (sep + F)) to get coefficients E and F
+    # for modeling
 
     fringeshield = {}
 
@@ -454,15 +455,13 @@ def compute_fringeshield(process, metals, substrates, areacap, fringe10):
                     xdata.append(float(tokens[3]))
                     ydata.append(float(tokens[4]))
 
-            # Use scipy least_squares to do a nonlinear curve fit to y = tanh(e * (x + f))
-            # def func2(x, e, f):
-            #   return numpy.tanh(e * (x + f))
+            # Use scipy least_squares to do a nonlinear curve fit to
+            # y = (2/pi) * atan(e * (x + f))
 
             def func2(x, a, b, c, d):
                 return a + b * 0.6366 * numpy.arctan(c * (x + d))
 
             try:
-                # p0 = [0.2, 1.0]
                 p0 = [ydata[0], ydata[-1] - ydata[0], 1, 0]
                 params, _ = scipy.optimize.curve_fit(func2, xdata, ydata, p0=p0)
             except:
@@ -542,7 +541,6 @@ def compute_fringepartial(process, metals, limits, areacap, fringe):
 #--------------------------------------------------------------
 
 def validate_fringe(process, stackupfile, startupfile, metals, substrates, limits, verbose=0):
-
     # Get total capacitance, wire to substrate.  Run the
     # one-wire generator for each set of layers independently,
     # and with higher tolerance than the default.  Find values
@@ -933,6 +931,10 @@ def plot_sidewall(process, metal, sidewall):
     for sval in sep1:
         ctest.append(swmult / (sval + swoffset))
 
+    ctest2 = []
+    for sval in sep1:
+        ctest2.append(swmult / sval)
+
     # Now plot all three results using matplotlib
     fig = Figure()
     canvas = FigureCanvasAgg(fig)
@@ -941,6 +943,7 @@ def plot_sidewall(process, metal, sidewall):
     if validated:
         ax.plot(sep2, ccoup2, label='Magic')
     ax.plot(sep1, ctest, label='Analytic')
+    ax.plot(sep1, ctest2, label='Analytic, no offset')
     ax.set_xlabel('Wire separation (um)')
     ax.set_ylabel('Sidewall capacitance (aF/um)')
     ax.grid(True)
@@ -955,7 +958,7 @@ def plot_sidewall(process, metal, sidewall):
 # Plot fringe shielding capacitance data
 #--------------------------------------------------------------
 
-def plot_fringeshield(process, metal, cond, areacap, fringe, fringeshield):
+def plot_fringeshield(process, metal, width, cond, areacap, fringe, fringeshield):
 
     # Check if metal + cond combination is valid
     try:
@@ -1034,15 +1037,20 @@ def plot_fringeshield(process, metal, cond, areacap, fringe, fringeshield):
     fsoffset = fsrec[1]
 
     # Get analytic values for the area cap and maximum single-side fringe.
-    carea = areacap[metal + '+' + cond]
+    cpersq = areacap[metal + '+' + cond]
+    carea = cpersq * width
     cfringe = fringe[metal + '+' + cond]
     ctotal = carea + 2 * cfringe
 
     ftest = []
     for sval in sep1:
-        # frac = numpy.tanh(fsmult * (sval + fsoffset))
         frac = 0.6366 * numpy.arctan(fsmult * (sval + fsoffset))
         ftest.append((carea + cfringe * (1 + frac)) / ctotal)
+
+    ftest2 = []
+    for sval in sep1:
+        frac2 = 0.6366 * numpy.arctan((cpersq * 0.02) * sval)
+        ftest2.append((carea + cfringe * (1 + frac2)) / ctotal)
 
     # Now plot all three results using matplotlib
     fig = Figure()
@@ -1052,6 +1060,7 @@ def plot_fringeshield(process, metal, cond, areacap, fringe, fringeshield):
     if validated:
         ax.plot(sep2, fshield2, label='Magic')
     ax.plot(sep1, ftest, label='Analytic')
+    ax.plot(sep1, ftest2, label='Analytic, simplified')
     ax.set_xlabel('Wire separation (um)')
     ax.set_ylabel('Fringe capacitance shielding (fraction)')
     ax.grid(True)
@@ -1066,7 +1075,7 @@ def plot_fringeshield(process, metal, cond, areacap, fringe, fringeshield):
 # Plot partial fringe capacitance data
 #--------------------------------------------------------------
 
-def plot_fringepartial(process, metal, cond, areacap, fringe, fringepartial):
+def plot_fringepartial(process, metal, width, cond, areacap, fringe, fringepartial):
 
     # Check if metal + cond combination is valid
     try:
@@ -1145,7 +1154,8 @@ def plot_fringepartial(process, metal, cond, areacap, fringe, fringepartial):
     fpoffset = fprec[1]
 
     # Get analytic values for the area cap and maximum single-side fringe.
-    carea = areacap[metal + '+' + cond]
+    cpersq = areacap[metal + '+' + cond]
+    carea = cpersq * width
     cfringe = fringe[metal + '+' + cond]
     ctotal = carea + 2 * cfringe
 
@@ -1153,6 +1163,11 @@ def plot_fringepartial(process, metal, cond, areacap, fringe, fringepartial):
     for sval in sep1:
         frac = 0.6366 * numpy.arctan(fpmult * (sval + fpoffset))
         ftest.append((carea + cfringe * (1 + frac)) / ctotal)
+
+    ftest2 = []
+    for sval in sep1:
+        frac2 = 0.6366 * numpy.arctan((cpersq * 0.015) * sval)
+        ftest2.append((carea + cfringe * (1 + frac2)) / ctotal)
 
     # Now plot all three results using matplotlib
     fig = Figure()
@@ -1162,6 +1177,7 @@ def plot_fringepartial(process, metal, cond, areacap, fringe, fringepartial):
     if validated:
         ax.plot(sep2, ffringe2, label='Magic')
     ax.plot(sep1, ftest, label='Analytic')
+    ax.plot(sep1, ftest2, label='Analytic, simplified')
     ax.set_xlabel('Coupling layer width (um)')
     ax.set_ylabel('Partial fringe capacitance (fraction)')
     ax.grid(True)
@@ -1300,7 +1316,7 @@ if __name__ == '__main__':
     fringe = compute_fringe(process, metals, substrates, areacap, 1)
     fringe10 = compute_fringe(process, metals, substrates, areacap, 10)
     sidewall = compute_sidewall(process, metals)
-    fringeshield = compute_fringeshield(process, metals, substrates, areacap, fringe10)
+    fringeshield = compute_fringeshield(process, metals, limits, substrates, areacap, fringe10)
     fringepartial = compute_fringepartial(process, metals, limits, areacap, fringe)
 
     if verbose > 0:
@@ -1318,6 +1334,7 @@ if __name__ == '__main__':
     if startupfile:
         if verbose > 0:
             print('')
+            print('Magic startup file ' + startupfile + ' found.')
             print('Validating results against magic tech file:')
 
         validate_fringe(process, stackupfile, startupfile, metals, substrates, limits, verbose)
@@ -1337,13 +1354,14 @@ if __name__ == '__main__':
     if have_matplotlib:
         print('Generating plots:')
         for metal in metals:
+            minwidth = limits[metal][0]
             plot_sidewall(process, metal, sidewall)
             for cond in substrates:
-                plot_fringeshield(process, metal, cond, areacap, fringe10, fringeshield)
-                plot_fringepartial(process, metal, cond, areacap, fringe10, fringepartial)
+                plot_fringeshield(process, metal, minwidth * 10, cond, areacap, fringe10, fringeshield)
+                plot_fringepartial(process, metal, minwidth, cond, areacap, fringe, fringepartial)
             for cond in metals:
-                plot_fringeshield(process, metal, cond, areacap, fringe10, fringeshield)
-                plot_fringepartial(process, metal, cond, areacap, fringe10, fringepartial)
+                plot_fringeshield(process, metal, minwidth * 10, cond, areacap, fringe10, fringeshield)
+                plot_fringepartial(process, metal, minwidth, cond, areacap, fringe, fringepartial)
         if verbose > 0:
             print('Done.')
     else:
