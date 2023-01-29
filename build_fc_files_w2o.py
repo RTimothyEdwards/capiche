@@ -191,6 +191,10 @@ def build_fc_files_w2o(stackupfile, metal1list, metal2list, widths1, widths2, se
     # Simulate with fastercap
     #--------------------------------------------------------------
 
+    if tolerance == 0:
+        print('Tolerance set to zero;  skipping FasterCap run')
+        return 0
+
     fastercapexec = os.getenv('FASTERCAP_EXEC')
     if not fastercapexec:
         fastercapexec = 'FasterCap'

@@ -13,6 +13,9 @@ Updates:
     handling of TOPOX over metal 5 in sky130A, which was previously
     capturing the sidewall but not the dielectric above the metal.
 
+ 2) January 29, 2023:  Additional errors in FasterCap intput
+    files based on feedback from the FasterCap developer.
+
 -----------------------------------------------------------------------
 Requirements:
 

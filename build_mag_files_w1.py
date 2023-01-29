@@ -90,9 +90,10 @@ def build_mag_files_w1(stackupfile, startupscript, metallist, condlist, widths, 
     # Obtain the technology file
     #--------------------------------------------------------------
 
-    if not os.path.isfile(startupscript):
-        print('Error:  Cannot find technology startup script ' + startupscript + '!')
-        return 1
+    if startupscript and startupscript != '':
+        if not os.path.isfile(startupscript):
+            print('Error:  Cannot find technology startup script ' + startupscript + '!')
+            return 1
 
     #--------------------------------------------------------------
     # Generate files
@@ -183,6 +184,7 @@ def build_mag_files_w1(stackupfile, startupscript, metallist, condlist, widths, 
                     print('paint ' + mcond, file=ofile)
                     print('box values -20um -20um -20um -20um', file=ofile)
                     print('label B c ' + mcond, file=ofile)
+                    print('catch {extract halo 50um}', file=ofile)
                     print('extract all', file=ofile)
                     print('ext2spice lvs', file=ofile)
                     print('ext2spice cthresh 0', file=ofile)
@@ -194,6 +196,9 @@ def build_mag_files_w1(stackupfile, startupscript, metallist, condlist, widths, 
     #--------------------------------------------------------------
     # Run magic and extract
     #--------------------------------------------------------------
+
+    if not startupscript or startupscript == '':
+        return 0
 
     # Magic is assumed to be in the executable path list
     magicexec = os.getenv('MAGIC_EXEC')

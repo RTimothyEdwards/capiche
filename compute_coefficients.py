@@ -825,6 +825,45 @@ def save_coefficients(metals, substrates, areacap, fringe, sidewall, fringeshiel
                     # Instead of recalculating which metals are above or below, just ignore
                     # when the key doesn't exist.
                     print('fringepartial ' + metal + ' ' + cond + ' ' + '{:.3f}'.format(fringepartial[metal + '+' + cond][0]) + ' ' + '{:.3f}'.format(fringepartial[metal + '+' + cond][1]), file=ofile)
+
+    # Test for partial fringe and fringe shielding
+    # Specific set of metals is not important;  need to print for each conductor pair:
+    # area cap, max fringe cap, fringe shield multiplier, partial fringe multiplier, fringe
+    #   shield offset, partial fringe offset.
+    #
+    # This test is currently diagnostic but was used to improve the modeling in magic by
+    # showing that (1) the fringe shielding is equivalent to the amount of partial fringe
+    # underneath the shielding shape, and (2) the multiplier coefficient for the partial
+    # fringe atan() model is proportional to the area capacitance at a fixed width.  This
+    # analysis needs to be formalized, so it is being commented out for now.
+
+    if False:
+        with open('test.dat', 'w') as ofile:
+            for metal in metals:
+                for subs in substrates:
+                    if 'diff' in subs and metal == 'poly':
+                        continue
+                    if metal + '+' + subs not in fringepartial:
+                        fringepartial[metal + '+' + subs] = [0, 0]
+                    print('{:.5g}'.format(areacap[metal + '+' + subs]) + ' ' +
+				'{:.5g}'.format(fringe[metal + '+' + subs]) + ' ' +
+				'{:.5g}'.format(fringe10[metal + '+' + subs]) + ' ' +
+				'{:.5g}'.format(fringeshield[metal + '+' + subs][0]) + ' ' +
+				'{:.5g}'.format(fringepartial[metal + '+' + subs][0]) + ' ' +
+				'{:.5g}'.format(fringeshield[metal + '+' + subs][1]) + ' ' +
+				'{:.5g}'.format(fringepartial[metal + '+' + subs][1]), file=ofile)
+                for cond in metals:
+                    if metal + '+' + cond not in areacap:
+                        continue
+                    if cond == metal:
+                        continue
+                    print('{:.5g}'.format(areacap[metal + '+' + cond]) + ' ' +
+				'{:.5g}'.format(fringe[metal + '+' + cond]) + ' ' +
+				'{:.5g}'.format(fringe10[metal + '+' + cond]) + ' ' +
+				'{:.5g}'.format(fringeshield[metal + '+' + cond][0]) + ' ' +
+				'{:.5g}'.format(fringepartial[metal + '+' + cond][0]) + ' ' +
+				'{:.5g}'.format(fringeshield[metal + '+' + cond][1]) + ' ' +
+				'{:.5g}'.format(fringepartial[metal + '+' + cond][1]), file=ofile)
                     
 #-------------------------------------------------------------------------
 # Read all model coefficients
@@ -1088,6 +1127,10 @@ def plot_fringepartial(process, metal, width, cond, areacap, fringe, fringeparti
 
     infile1B = process + '/analysis/fringe/' + metal + '_' + cond + '.txt'
     infile2B = process + '/validate/fringe/' + metal + '_' + cond + '.txt'
+
+    if not os.path.isfile(infile2A):
+        print('No results available for ' + infile2A)
+        return
 
     validated = True
     if not os.path.isfile(infile2A):
