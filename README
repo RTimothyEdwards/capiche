@@ -22,12 +22,13 @@ Requirements:
 	python3	(with packages numpy, scipy, and matplotlib)
 	FasterCap
 	magic
-	open_pdks (installed for sky130 process)
+	open_pdks (installed for sky130 and/or gf180mcu processes)
 
 -----------------------------------------------------------------------
 Usage:
 
 	./compute_coefficients.py  sky130A/metal_stack_sky130A.py
+	./compute_coefficients.py  gf180mcuD/metal_stack_gf180mcuD.py
 
 NOTE: If FasterCap isn't in the standard execution path, set the environment
 variable FASTERCAP_EXEC to the full path of FasterCap.
@@ -175,6 +176,7 @@ must be.  The layer types are as follows:
 	'd':	Diffusion type, used for substrate, well, or diffusion
 	'f':	Field oxide type, which is directly above the substrate
 	'k':	Simple dielectric
+	'b':	Simple dielectric unrelated to any metal
 	'c':	Conformal dielectic
 	's':	Sidewall dielectric
 	'm':	Metal

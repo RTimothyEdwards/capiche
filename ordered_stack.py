@@ -69,13 +69,18 @@ def ordered_stack(substrate, metals, layers, verbose=0):
     # metals.  This is inefficient, but the metal stack is not large.
 
     while True:
-        # Find the lowest metal higher than yref.
+        # Find the lowest metal higher than yref.  If there is a 'b' layer then
+        # process it immediately and reset the baseline.
+
         minmy = 10000
         for lname, layer in layers.items():
             if layer[0] == 'm':
                 if layer[1] > yref and layer[1] < minmy:
                     minmy = layer[1]
                     minmn = lname
+            elif layer[0] == 'b':
+                if layer[1] > yref and layer[1] < minmy:
+                    pstack.append([lname, 'k', None, ybase, yref, yref, 0.0, layer[2]])
 
         if minmy == 10000:
             break
@@ -194,7 +199,6 @@ def ordered_stack(substrate, metals, layers, verbose=0):
                             yref += clayer[4]
                             pstack.append([cname, 'k', minmn, ybase, yref, yref, 0.0, clayer[1]])
                             break
-
 
     # Add the entry for "air" (k=1.0) to the top.
     for lname, layer in layers.items():
