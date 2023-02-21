@@ -69,18 +69,14 @@ def ordered_stack(substrate, metals, layers, verbose=0):
     # metals.  This is inefficient, but the metal stack is not large.
 
     while True:
-        # Find the lowest metal higher than yref.  If there is a 'b' layer then
-        # process it immediately and reset the baseline.
+        # Find the lowest metal or independent boundary higher than yref.
 
         minmy = 10000
         for lname, layer in layers.items():
-            if layer[0] == 'm':
+            if layer[0] == 'm' or layer[0] == 'b':
                 if layer[1] > yref and layer[1] < minmy:
                     minmy = layer[1]
                     minmn = lname
-            elif layer[0] == 'b':
-                if layer[1] > yref and layer[1] < minmy:
-                    pstack.append([lname, 'k', None, ybase, yref, yref, 0.0, layer[2]])
 
         if minmy == 10000:
             break
@@ -94,7 +90,10 @@ def ordered_stack(substrate, metals, layers, verbose=0):
         # Diagnostic
         if verbose > 0:
             height = "{:.4f}".format(minmy)
-            print('Forming stack:  Reference metal is ' + minmn + ' base height ' + height)
+            if layer[0] == 'm':
+                print('Forming stack:  Reference metal is ' + minmn + ' base height ' + height)
+            else:
+                print('Forming stack:  Reference boundary is ' + minmn + ' base height ' + height)
 
         # If this metal layer is used for the wires, then add the metal
         # layer to the list.  Otherwise, just retain the metal layer
@@ -110,7 +109,8 @@ def ordered_stack(substrate, metals, layers, verbose=0):
 
         lname = mlayer[3]
         klayer = layers[lname]
-        pstack.append([lname, 'k', None, ybase, yref, yref, 0.0, klayer[1]])
+        kvalue = klayer[2] if klayer[0] == 'b' else klayer[1]
+        pstack.append([lname, 'k', None, ybase, yref, yref, 0.0, kvalue])
 
         if usemetal == True:
             # The reference Y value is now at the top of the metal
@@ -200,11 +200,16 @@ def ordered_stack(substrate, metals, layers, verbose=0):
                             pstack.append([cname, 'k', minmn, ybase, yref, yref, 0.0, clayer[1]])
                             break
 
-    # Add the entry for "air" (k=1.0) to the top.
+    # Add the entry for "air" to the top.  Air is nominally K=1.0, but use the
+    # specified value, which could be > 1 to represent a polyimide on top.
+
     for lname, layer in layers.items():
-        if layer[0] == 'k':
-            if lname == 'air':
-                pstack.append([lname, 'k', minmn, ybase, 'inf', 'inf', wref, 1.0])
+        if lname == 'air':
+            if layer[0] == 'k':
+                pstack.append([lname, 'k', minmn, ybase, 'inf', 'inf', wref, layer[1]])
+                break
+            elif layer[0] == 'b':
+                pstack.append([lname, 'k', minmn, layer[1], 'inf', 'inf', wref, layer[2]])
                 break
 
     # Reverse the order so that the list is from top to bottom

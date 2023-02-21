@@ -1,11 +1,15 @@
 #
-# metal_stack_gf180mcuD.py ---
+# metal_stack_sky130B.py ---
 #
 #	Input file for build_fc_files.py.
-#	This describes the metal stack for the gf180mcuD process
+#	This describes the metal stack for the sky130B process
 #
-process = 'gf180mcuD'	# Process name
-feature_size = 0.18	# process minimum gate length (for general scaling)
+#	sky130B has ReRAM support.  The ReRAM layers are placed between
+#	metals 1 and 2, so the entire metal stack above metal 1 is raised
+#	with respect to sky130A.
+#
+process = 'sky130B'	# Process name
+feature_size = 0.15	# process minimum gate length (for general scaling)
 
 # Well/substrate is assumed to define Y = 0.
 # All dimension values are in microns
@@ -24,10 +28,6 @@ feature_size = 0.18	# process minimum gate length (for general scaling)
 # 'f':  field oxide dielectric.  Has one argument, which is the dielectric
 #	constant.  The associated layer is always either well or diffusion,
 #	and separate tables will be generated for both cases.
-# 'b':  boundary dielectric.  Has three arguments, which are the height
-#	above the substrate, dielectric constant, and the name of the
-#	dielectric layer beneath it.  Like 'k', but used when a dielectric
-#	layer is added that has no relationship to a metal underneath.
 # 'c':	conforming dielectric.  Has five arguments, which are dielectric
 #	constant, thickness above the associated layer, sidewall width,
 #	thickness when not over the associated layer, and an associated
@@ -48,30 +48,33 @@ feature_size = 0.18	# process minimum gate length (for general scaling)
 #	associated conformal dielectric).  Includes any conductor such as
 #	poly, local interconnect, etc.
 
-# NOTE: Position of diff and mvdiff based on modeled oxide thickness of
-# 8nm for the 3.3V devices and 15.2nm for the 6.0V devices.
-
 layers = {}
 layers['subs']	 = ['d', 0.0000, 'fox']
 layers['nwell']  = ['d', 0.0000, 'fox']
-layers['diff']   = ['d', 0.3120, 'fox']
-layers['mvdiff'] = ['d', 0.3048, 'fox']
-layers['fox']    = ['f', 4.0] 
-layers['poly']   = ['m', 0.32, 0.2, 'fox', 'nit']
-layers['nit']    = ['c', 7.0, 0.05, 0.05, 0.05, 'poly']
-layers['ild']    = ['k', 4.0, 'nit']
-layers['m1']     = ['m', 1.23, 0.55, 'ild', 'imd1']
-layers['imd1']   = ['k', 4.0, 'ild']
-layers['m2']     = ['m', 2.38, 0.55, 'imd1', 'imd2']
-layers['imd2']   = ['k', 4.0, 'imd1']
-layers['m3']     = ['m', 3.53, 0.55, 'imd2', 'imd3']
-layers['imd3']   = ['k', 4.0, 'imd2']
-layers['m4']     = ['m', 4.68, 0.55, 'imd3', 'imd4']
-layers['imd4']   = ['k', 4.0, 'imd3']
-layers['m5']     = ['m', 6.13, 1.1925, 'imd4', 'pass']
-layers['pass']   = ['k', 4.0, 'imd4'] 
-layers['sin']    = ['b', 8.5225, 7.0, 'pass']
-layers['air']    = ['b', 8.8225, 3.0, 'sin']
+layers['diff']   = ['d', 0.3230, 'fox']
+layers['mvdiff'] = ['d', 0.3152, 'fox']
+layers['fox']    = ['f', 3.9] 
+layers['poly']   = ['m', 0.3262, 0.18, 'fox', 'psg']
+layers['iox']    = ['s', 3.9, 0, 0.006, 'poly']
+layers['spnit']  = ['s', 7.5, 0.121, 0.0431, 'iox']
+layers['psg']    = ['k', 3.9, 'fox']
+layers['li']     = ['m', 0.9361, 0.10, 'psg', 'lint']
+layers['lint']   = ['c', 7.3, 0.075, 0.075, 0.075, 'li']
+layers['nild2']  = ['k', 4.05, 'lint']
+layers['m1']     = ['m', 1.3761, 0.36, 'nild2', 'nild3']
+layers['nild3c'] = ['s', 3.5, 0, 0.03, 'm1']
+layers['nild3']  = ['k', 4.5, 'nild2']
+layers['m2']     = ['m', 2.3011, 0.36, 'nild3', 'nild4']
+layers['nild4c'] = ['s', 3.5, 0, 0.03, 'm2']
+layers['nild4']  = ['k', 4.2, 'nild3']
+layers['m3']     = ['m', 3.0811, 0.845, 'nild4', 'nild5']
+layers['nild5']  = ['k', 4.1, 'nild4']
+layers['m4']     = ['m', 4.3161, 0.845, 'nild5', 'nild6']
+layers['nild6']  = ['k', 4.0, 'nild5']
+layers['m5']     = ['m', 5.6661, 1.26, 'nild6', 'topox']
+layers['topox']  = ['s', 3.9, 0.09, 0.07, 'm5'] 
+layers['topnit'] = ['c', 7.5, 0.54, 0.4223, 0.3777, 'topox']
+layers['air']    = ['k', 3.0, 'topnit']
 
 #
 # Define metal width and spacing minimum limits.
@@ -79,12 +82,13 @@ layers['air']    = ['b', 8.8225, 3.0, 'sin']
 # 1st value is minimum width, 2nd value is minimum spacing
 
 limits = {}
-limits['poly'] = [0.18, 0.24]
-limits['m1']   = [0.23, 0.23]
-limits['m2']   = [0.28, 0.28]
-limits['m3']   = [0.28, 0.28]
-limits['m4']   = [0.28, 0.28]
-limits['m5']   = [0.36, 0.38]
+limits['poly'] = [0.15, 0.21]
+limits['li']   = [0.17, 0.17]
+limits['m1']   = [0.14, 0.14]
+limits['m2']   = [0.14, 0.14]
+limits['m3']   = [0.3,  0.3]
+limits['m4']   = [0.3,  0.3]
+limits['m5']   = [1.6,  1.6]
 
 #
 # Define the (known and agreed-upon) parallel plate capacitance
@@ -93,12 +97,13 @@ limits['m5']   = [0.36, 0.38]
 # directly)
 
 platecap = {}
-platecap['poly'] = [110.68, 110.68,  4427,  2330 ]
-platecap['m1']   = [ 29.30,  29.30,  39.2,  39.2 ]
-platecap['m2']   = [ 12.37,  12.37,  17.3,  17.3 ]
-platecap['m3']   = [ 10.09,  10.09,  11.1,  11.1 ]
-platecap['m4']   = [  7.60,   7.60,  8.14,   8.14]
-platecap['m5']   = [  5.80,   5.80,  6.10,   6.10]
+platecap['poly'] = [106.13, 106.13, 10791, 3139.1 ]
+platecap['li']   = [ 36.99,  36.99,  55.3,  54.6 ]
+platecap['m1']   = [ 25.78,  25.78,  33.6,  33.4 ]
+platecap['m2']   = [ 16.22,  16.22,  19.1,  19.0 ]
+platecap['m3']   = [ 12.10,  12.10,  13.6,  13.6 ]
+platecap['m4']   = [  8.57,   8.57,  9.32,   9.32]
+platecap['m5']   = [  6.46,   6.46,  6.88,   6.87]
 
 #
 # Define the relationship between metal layers in this file
@@ -110,6 +115,7 @@ magiclayers['nwell'] = 'nwell'
 magiclayers['diff'] = 'ndiff'
 magiclayers['mvdiff'] = 'mvndiff'
 magiclayers['poly'] = 'poly'
+magiclayers['li'] = 'li'
 magiclayers['m1'] = 'm1'
 magiclayers['m2'] = 'm2'
 magiclayers['m3'] = 'm3'

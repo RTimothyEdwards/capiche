@@ -1,11 +1,12 @@
 #
-# metal_stack_gf180mcuD.py ---
+# metal_stack_gf180mcuD_low.py ---
 #
 #	Input file for build_fc_files.py.
 #	This describes the metal stack for the gf180mcuD process
+#	low (best) capacitance corner
 #
-process = 'gf180mcuD'	# Process name
-feature_size = 0.18	# process minimum gate length (for general scaling)
+process = 'gf180mcuD_low'	# Process name
+feature_size = 0.18		# process minimum gate length (for general scaling)
 
 # Well/substrate is assumed to define Y = 0.
 # All dimension values are in microns
@@ -54,24 +55,24 @@ feature_size = 0.18	# process minimum gate length (for general scaling)
 layers = {}
 layers['subs']	 = ['d', 0.0000, 'fox']
 layers['nwell']  = ['d', 0.0000, 'fox']
-layers['diff']   = ['d', 0.3120, 'fox']
-layers['mvdiff'] = ['d', 0.3048, 'fox']
+layers['diff']   = ['d', 0.3600, 'fox']
+layers['mvdiff'] = ['d', 0.3528, 'fox']
 layers['fox']    = ['f', 4.0] 
-layers['poly']   = ['m', 0.32, 0.2, 'fox', 'nit']
-layers['nit']    = ['c', 7.0, 0.05, 0.05, 0.05, 'poly']
+layers['poly']   = ['m', 0.368, 0.19, 'fox', 'nit']
+layers['nit']    = ['c', 7.0, 0.0525, 0.0525, 0.0525, 'poly']
 layers['ild']    = ['k', 4.0, 'nit']
-layers['m1']     = ['m', 1.23, 0.55, 'ild', 'imd1']
+layers['m1']     = ['m', 1.3705, 0.5, 'ild', 'imd1']
 layers['imd1']   = ['k', 4.0, 'ild']
-layers['m2']     = ['m', 2.38, 0.55, 'imd1', 'imd2']
+layers['m2']     = ['m', 2.5895, 0.5, 'imd1', 'imd2']
 layers['imd2']   = ['k', 4.0, 'imd1']
-layers['m3']     = ['m', 3.53, 0.55, 'imd2', 'imd3']
+layers['m3']     = ['m', 3.8085, 0.5, 'imd2', 'imd3']
 layers['imd3']   = ['k', 4.0, 'imd2']
-layers['m4']     = ['m', 4.68, 0.55, 'imd3', 'imd4']
+layers['m4']     = ['m', 5.0275, 0.5, 'imd3', 'imd4']
 layers['imd4']   = ['k', 4.0, 'imd3']
-layers['m5']     = ['m', 6.13, 1.1925, 'imd4', 'pass']
+layers['m5']     = ['m', 6.5645, 1.125, 'imd4', 'pass']
 layers['pass']   = ['k', 4.0, 'imd4'] 
-layers['sin']    = ['b', 8.5225, 7.0, 'pass']
-layers['air']    = ['b', 8.8225, 3.0, 'sin']
+layers['sin']    = ['b', 8.5645, 7.0, 'pass']
+layers['air']    = ['b', 8.8345, 3.0, 'sin']
 
 #
 # Define metal width and spacing minimum limits.
@@ -93,12 +94,12 @@ limits['m5']   = [0.36, 0.38]
 # directly)
 
 platecap = {}
-platecap['poly'] = [110.68, 110.68,  4427,  2330 ]
-platecap['m1']   = [ 29.30,  29.30,  39.2,  39.2 ]
-platecap['m2']   = [ 12.37,  12.37,  17.3,  17.3 ]
-platecap['m3']   = [ 10.09,  10.09,  11.1,  11.1 ]
-platecap['m4']   = [  7.60,   7.60,  8.14,   8.14]
-platecap['m5']   = [  5.80,   5.80,  6.10,   6.10]
+platecap['poly'] = [ 96.24,  96.24,  4427,  2330 ]
+platecap['m1']   = [ 26.27,  26.27,  35.8,  35.6 ]
+platecap['m2']   = [ 13.79,  13.79,  16.0,  16.0 ]
+platecap['m3']   = [  9.35,   9.35,  10.3,  10.3 ]
+platecap['m4']   = [  7.08,   7.08,  7.62,   7.61]
+platecap['m5']   = [  5.41,   5.41,  5.73,   5.72]
 
 #
 # Define the relationship between metal layers in this file
