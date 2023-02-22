@@ -86,6 +86,12 @@ def build_mag_files_w1(stackupfile, startupscript, metallist, condlist, widths, 
         print('Error:  Metal stack does not define magiclayers!')
         return 1
 
+    try:
+        magicextractstyle = locals['magicextractstyle']
+    except:
+        # Use default
+        magicextractstyle = None
+
     #--------------------------------------------------------------
     # Obtain the technology file
     #--------------------------------------------------------------
@@ -174,8 +180,8 @@ def build_mag_files_w1(stackupfile, startupscript, metallist, condlist, widths, 
             for width in widths:
                 wspec = "{:.2f}".format(width)
                 wsspec = "{:.2f}".format(width).replace('.', 'p')
-                filename = process + '/magic_files/w1/' + metal + '_' + conductor + '_w_' + wsspec + '.tcl'
-                with open(filename, 'w') as ofile:
+                filename = metal + '_' + conductor + '_w_' + wsspec + '.tcl'
+                with open(process + '/magic_files/w1/' + filename, 'w') as ofile:
                     print('load test -silent', file=ofile)
                     print('box values 0 0 ' + wspec + 'um 1000um', file=ofile)
                     print('paint ' + mmetal, file=ofile)
@@ -184,6 +190,8 @@ def build_mag_files_w1(stackupfile, startupscript, metallist, condlist, widths, 
                     print('paint ' + mcond, file=ofile)
                     print('box values -20um -20um -20um -20um', file=ofile)
                     print('label B c ' + mcond, file=ofile)
+                    if magicextractstyle:
+                        print('extract style ' + magicextractstyle, file=ofile)
                     print('catch {extract halo 50um}', file=ofile)
                     print('extract all', file=ofile)
                     print('ext2spice lvs', file=ofile)
@@ -210,21 +218,23 @@ def build_mag_files_w1(stackupfile, startupscript, metallist, condlist, widths, 
     for file in filelist:
         print('Running Magic on input file ' + file)
         try:
+            print('Running  magic -dnull -noconsole -rcfile ' + startupscript + ' ' + file)
             proc = subprocess.run(['magic', '-dnull', '-noconsole', '-rcfile', startupscript, file],
 			stdin = subprocess.DEVNULL,
 			stdout = subprocess.PIPE,
 			stderr = subprocess.PIPE,
 			universal_newlines = True,
+			cwd = process + '/magic_files/w1',
 			timeout = 30)
         except subprocess.TimeoutExpired:
             # Just ignore this result
             pass
         else:
             # Remove the .ext file
-            os.remove('test.ext')
+            os.remove(process + '/magic_files/w1/test.ext')
             # Read output SPICE file
             csub = 0.0
-            with open('test.spice', 'r') as ifile:
+            with open(process + '/magic_files/w1/test.spice', 'r') as ifile:
                 spicelines = ifile.read().splitlines()
                 for line in spicelines:
                     if line.startswith('C'):
@@ -234,7 +244,7 @@ def build_mag_files_w1(stackupfile, startupscript, metallist, condlist, widths, 
                     
 
             # Remove the SPICE file
-            os.remove('test.spice')
+            os.remove(process + '/magic_files/w1/test.spice')
 
             scsub = "{:.5g}".format(csub)
             print('Result:  Csub=' + scsub)

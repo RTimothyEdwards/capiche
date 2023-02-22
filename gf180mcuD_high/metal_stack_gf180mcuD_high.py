@@ -116,3 +116,6 @@ magiclayers['m2'] = 'm2'
 magiclayers['m3'] = 'm3'
 magiclayers['m4'] = 'm4'
 magiclayers['m5'] = 'm5'
+
+# Define the extraction style if non-default
+magicextractstyle = 'ngspice(hrhc)'
