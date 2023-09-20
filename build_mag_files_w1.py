@@ -240,7 +240,10 @@ def build_mag_files_w1(stackupfile, startupscript, metallist, condlist, widths, 
                     if line.startswith('C'):
                         if 'A B' in line or 'B A' in line:
                             tokens = line.split()
-                            csub = 1e-9 * float(tokens[3].replace('f', '').replace('F', '')) / 1000
+                            if 'p' in tokens:
+                                csub = 1e-9 * float(tokens[3].lower().replace('p', '').replace('f', ''))
+                            else:
+                                csub = 1e-9 * float(tokens[3].lower().replace('f', '')) / 1000
                     
 
             # Remove the SPICE file

@@ -13,6 +13,12 @@
 # 1.  Parallel plate capacitance (aF/um^2) = A
 # 2.  Sidewall capacitance (aF/um) = B / (sep - C)
 # 3.  Total fringe capacitance (aF/um) = D
+#
+# The following two items have been found to be largely secondary, and to
+# a first-order approximation can be derived from items 1-3.  They are
+# good tests for validation but have a long run-time.  They may be
+# omitted by command-line option.
+#
 # 4.  Fringe capacitance with near-body shielding = D * (2/pi) * atan(E * (sep + F))
 # 5.  Partial fringe capacitance = D * (2/pi) * atan(G * (x + H))
 # 
@@ -92,7 +98,10 @@ from build_mag_files_w2 import build_mag_files_w2
 def usage():
     print('Usage:  compute_coefficients.py <stack_def_file> [<magic_startup_file>] [options]')
     print('  Where [options] may be one or more of:')
-    print('     -verbose=<value>         (Diagnostic level)')
+    print('     -verbose=<value>    (Diagnostic level)')
+    print('     -noshield           (Do not run fringe shield simulations)') 
+    print('     -nopartial          (Do not run partial fringe simulations)') 
+    print('     -nosidewall         (Do not run sidewall simulations)') 
 
 #--------------------------------------------------------------
 # Generate lists of metal types and substrate types from the
@@ -743,40 +752,43 @@ def print_coefficients(metals, substrates, areacap, fringe, sidewall, fringeshie
                 continue
             print('    ' + cond + ' = {:.3f}'.format(fringe[metal + '+' + cond]))
 
-        print('')
-        print('  sidewall cap:')
-        print('      multiplier = {:.3f}'.format(sidewall[metal][0]))
-        print('      offset     = {:.3f}'.format(sidewall[metal][1]))
+        if sidewall:
+            print('')
+            print('  sidewall cap:')
+            print('      multiplier = {:.3f}'.format(sidewall[metal][0]))
+            print('      offset     = {:.3f}'.format(sidewall[metal][1]))
 
-        print('')
-        print('  fringe shielding to:')
-        for subs in substrates:
-            if 'diff' in subs and metal == 'poly':
-                continue
-            print('    ' + subs + ':')
-            print('    multiplier = {:.3f}'.format(fringeshield[metal + '+' + subs][0]))
-            print('    offset     = {:.3f}'.format(fringeshield[metal + '+' + subs][1]))
-        for cond in metals:
-            if cond == metal:
-                continue
-            if metal + '+' + cond in fringeshield.keys():
-                # Instead of recalculating which metals are above or below, just ignore
-                # when the key doesn't exist.
-                print('    ' + cond + ':')
-                print('    multiplier = {:.3f}'.format(fringeshield[metal + '+' + cond][0]))
-                print('    offset     = {:.3f}'.format(fringeshield[metal + '+' + cond][1]))
+        if fringeshield:
+            print('')
+            print('  fringe shielding to:')
+            for subs in substrates:
+                if 'diff' in subs and metal == 'poly':
+                    continue
+                print('    ' + subs + ':')
+                print('    multiplier = {:.3f}'.format(fringeshield[metal + '+' + subs][0]))
+                print('    offset     = {:.3f}'.format(fringeshield[metal + '+' + subs][1]))
+            for cond in metals:
+                if cond == metal:
+                    continue
+                if metal + '+' + cond in fringeshield.keys():
+                    # Instead of recalculating which metals are above or below, just ignore
+                    # when the key doesn't exist.
+                    print('    ' + cond + ':')
+                    print('    multiplier = {:.3f}'.format(fringeshield[metal + '+' + cond][0]))
+                    print('    offset     = {:.3f}'.format(fringeshield[metal + '+' + cond][1]))
 
-        print('')
-        print('  partial fringe to:')
-        for cond in metals:
-            if cond == metal:
-                continue
-            if metal + '+' + cond in fringepartial.keys():
-                # Instead of recalculating which metals are above or below, just ignore
-                # when the key doesn't exist.
-                print('    ' + cond + ':')
-                print('    multiplier = {:.3f}'.format(fringepartial[metal + '+' + cond][0]))
-                print('    offset     = {:.3f}'.format(fringepartial[metal + '+' + cond][1]))
+        if fringepartial:
+            print('')
+            print('  partial fringe to:')
+            for cond in metals:
+                if cond == metal:
+                    continue
+                if metal + '+' + cond in fringepartial.keys():
+                    # Instead of recalculating which metals are above or below, just ignore
+                    # when the key doesn't exist.
+                    print('    ' + cond + ':')
+                    print('    multiplier = {:.3f}'.format(fringepartial[metal + '+' + cond][0]))
+                    print('    offset     = {:.3f}'.format(fringepartial[metal + '+' + cond][1]))
 
 #-------------------------------------------------------------------------
 # Save all model coefficients
@@ -804,27 +816,30 @@ def save_coefficients(metals, substrates, areacap, fringe, sidewall, fringeshiel
                     continue
                 print('fringecap ' + metal + ' ' + cond + ' {:.3f}'.format(fringe[metal + '+' + cond]), file=ofile)
 
-            print('sidewall ' + metal + ' ' + '{:.3f}'.format(sidewall[metal][0]) + ' ' + '{:.3f}'.format(sidewall[metal][1]), file=ofile)
+            if sidewall:
+                print('sidewall ' + metal + ' ' + '{:.3f}'.format(sidewall[metal][0]) + ' ' + '{:.3f}'.format(sidewall[metal][1]), file=ofile)
 
-            for subs in substrates:
-                if 'diff' in subs and metal == 'poly':
-                    continue
-                print('fringeshield ' + metal + ' ' + subs + ' ' + '{:.3f}'.format(fringeshield[metal + '+' + subs][0]) + ' ' + '{:.3f}'.format(fringeshield[metal + '+' + subs][1]), file=ofile)
-            for cond in metals:
-                if cond == metal:
-                    continue
-                if metal + '+' + cond in fringeshield.keys():
-                    # Instead of recalculating which metals are above or below, just ignore
-                    # when the key doesn't exist.
-                    print('fringeshield ' + metal + ' ' + cond + ' ' + '{:.3f}'.format(fringeshield[metal + '+' + cond][0]) + ' ' + '{:.3f}'.format(fringeshield[metal + '+' + cond][1]), file=ofile)
+            if fringeshield:
+                for subs in substrates:
+                    if 'diff' in subs and metal == 'poly':
+                        continue
+                    print('fringeshield ' + metal + ' ' + subs + ' ' + '{:.3f}'.format(fringeshield[metal + '+' + subs][0]) + ' ' + '{:.3f}'.format(fringeshield[metal + '+' + subs][1]), file=ofile)
+                for cond in metals:
+                    if cond == metal:
+                        continue
+                    if metal + '+' + cond in fringeshield.keys():
+                        # Instead of recalculating which metals are above or below, just ignore
+                        # when the key doesn't exist.
+                        print('fringeshield ' + metal + ' ' + cond + ' ' + '{:.3f}'.format(fringeshield[metal + '+' + cond][0]) + ' ' + '{:.3f}'.format(fringeshield[metal + '+' + cond][1]), file=ofile)
 
-            for cond in metals:
-                if cond == metal:
-                    continue
-                if metal + '+' + cond in fringepartial.keys():
-                    # Instead of recalculating which metals are above or below, just ignore
-                    # when the key doesn't exist.
-                    print('fringepartial ' + metal + ' ' + cond + ' ' + '{:.3f}'.format(fringepartial[metal + '+' + cond][0]) + ' ' + '{:.3f}'.format(fringepartial[metal + '+' + cond][1]), file=ofile)
+            if fringepartial:
+                for cond in metals:
+                    if cond == metal:
+                        continue
+                    if metal + '+' + cond in fringepartial.keys():
+                        # Instead of recalculating which metals are above or below, just ignore
+                        # when the key doesn't exist.
+                        print('fringepartial ' + metal + ' ' + cond + ' ' + '{:.3f}'.format(fringepartial[metal + '+' + cond][0]) + ' ' + '{:.3f}'.format(fringepartial[metal + '+' + cond][1]), file=ofile)
 
     # Test for partial fringe and fringe shielding
     # Specific set of metals is not important;  need to print for each conductor pair:
@@ -1068,7 +1083,10 @@ def plot_fringeshield(process, metal, width, cond, areacap, fringe, fringeshield
                     sep2.append(float(tokens[3]))
                     # Convert coupling cap to aF/um and subtract from the result for a
                     # single wire (i.e., infinite separation)
-                    fcoup2 = (float(tokens[4]) * 1e12) / totalcap2
+                    if totalcap2 != 0:
+                        fcoup2 = (float(tokens[4]) * 1e12) / totalcap2
+                    else:
+                        fcoup2 = 0
                     fshield2.append(fcoup2)
 
     # Compute the analytic fringe shielding
@@ -1189,7 +1207,10 @@ def plot_fringepartial(process, metal, width, cond, areacap, fringe, fringeparti
                     sep2.append(-float(tokens[3]))
                     # Convert coupling cap to aF/um and subtract from the result for a
                     # single wire (i.e., infinite separation)
-                    fcoup2 = (float(tokens[6]) * 1e12) / totalcap2
+                    if totalcap2 != 0:
+                        fcoup2 = (float(tokens[6]) * 1e12) / totalcap2
+                    else:
+                        fcoup2 = 0
                     ffringe2.append(fcoup2)
 
     # Compute the analytic partial fringe
@@ -1209,7 +1230,7 @@ def plot_fringepartial(process, metal, width, cond, areacap, fringe, fringeparti
 
     ftest2 = []
     for sval in sep1:
-        frac2 = 0.6366 * numpy.arctan((cpersq * 0.015) * sval)
+        frac2 = 0.6366 * numpy.arctan((cpersq * 0.02) * sval)
         ftest2.append((carea + cfringe * (1 + frac2)) / ctotal)
 
     # Now plot all three results using matplotlib
@@ -1253,6 +1274,9 @@ if __name__ == '__main__':
 
     verbose = 0
     startupfile = None
+    doshield = True
+    dopartial = True
+    dosidewall = True
 
     #---------------------------------------------------
     # Get arguments
@@ -1278,6 +1302,14 @@ if __name__ == '__main__':
     for option in options:
         tokens = option.split('=')
         if len(tokens) != 2:
+            if tokens[0] == '-noshield':
+                doshield = False
+            elif tokens[0] == '-nopartial':
+                dopartial = False
+            elif tokens[0] == '-nosidewall':
+                dosidewall = False
+            elif tokens[0] == '-verbose':
+                verbose = 1
             print('Error:  Option "' + option + '":  Option must be in form "-key=<value>".')
             usage()
             continue
@@ -1340,12 +1372,15 @@ if __name__ == '__main__':
     generate_areacap(process, stackupfile, verbose)
     generate_fringe(process, stackupfile, metals, substrates, limits, verbose)
     print_elapsed_time(tstart, verbose)
-    generate_sidewall(process, stackupfile, metals, substrates, limits, verbose)
-    print_elapsed_time(tstart, verbose)
-    generate_fringeshield(process, stackupfile, metals, substrates, limits, verbose)
-    print_elapsed_time(tstart, verbose)
-    generate_fringepartial(process, stackupfile, metals, substrates, limits, verbose)
-    print_elapsed_time(tstart, verbose)
+    if dosidewall:
+        generate_sidewall(process, stackupfile, metals, substrates, limits, verbose)
+        print_elapsed_time(tstart, verbose)
+    if doshield:
+        generate_fringeshield(process, stackupfile, metals, substrates, limits, verbose)
+        print_elapsed_time(tstart, verbose)
+    if dopartial:
+        generate_fringepartial(process, stackupfile, metals, substrates, limits, verbose)
+        print_elapsed_time(tstart, verbose)
 
     if verbose > 0:
         print('Done.')
@@ -1358,9 +1393,17 @@ if __name__ == '__main__':
     areacap = compute_areacap(process)
     fringe = compute_fringe(process, metals, substrates, areacap, 1)
     fringe10 = compute_fringe(process, metals, substrates, areacap, 10)
-    sidewall = compute_sidewall(process, metals)
-    fringeshield = compute_fringeshield(process, metals, limits, substrates, areacap, fringe10)
-    fringepartial = compute_fringepartial(process, metals, limits, areacap, fringe)
+
+    sidewall = None
+    fringeshield = None
+    fringepartial = None
+
+    if dosidewall:
+        sidewall = compute_sidewall(process, metals)
+    if doshield:
+        fringeshield = compute_fringeshield(process, metals, limits, substrates, areacap, fringe10)
+    if dopartial:
+        fringepartial = compute_fringepartial(process, metals, limits, areacap, fringe)
 
     if verbose > 0:
         print('Done.\n')
@@ -1382,12 +1425,15 @@ if __name__ == '__main__':
 
         validate_fringe(process, stackupfile, startupfile, metals, substrates, limits, verbose)
         print_elapsed_time(tstart, verbose)
-        validate_sidewall(process, stackupfile, startupfile, metals, substrates, limits, verbose)
-        print_elapsed_time(tstart, verbose)
-        validate_fringeshield(process, stackupfile, startupfile, metals, substrates, limits, verbose)
-        print_elapsed_time(tstart, verbose)
-        validate_fringepartial(process, stackupfile, startupfile, metals, substrates, limits, verbose)
-        print_elapsed_time(tstart, verbose)
+        if dosidewall:
+            validate_sidewall(process, stackupfile, startupfile, metals, substrates, limits, verbose)
+            print_elapsed_time(tstart, verbose)
+        if doshield:
+            validate_fringeshield(process, stackupfile, startupfile, metals, substrates, limits, verbose)
+            print_elapsed_time(tstart, verbose)
+        if dopartial:
+            validate_fringepartial(process, stackupfile, startupfile, metals, substrates, limits, verbose)
+            print_elapsed_time(tstart, verbose)
         if verbose > 0:
             print('Done.')
     else:
@@ -1398,13 +1444,18 @@ if __name__ == '__main__':
         print('Generating plots:')
         for metal in metals:
             minwidth = limits[metal][0]
-            plot_sidewall(process, metal, sidewall)
+            if dosidewall:
+                plot_sidewall(process, metal, sidewall)
             for cond in substrates:
-                plot_fringeshield(process, metal, minwidth * 10, cond, areacap, fringe10, fringeshield)
-                plot_fringepartial(process, metal, minwidth, cond, areacap, fringe, fringepartial)
+                if doshield:
+                    plot_fringeshield(process, metal, minwidth * 10, cond, areacap, fringe10, fringeshield)
+                if dopartial:
+                    plot_fringepartial(process, metal, minwidth, cond, areacap, fringe, fringepartial)
             for cond in metals:
-                plot_fringeshield(process, metal, minwidth * 10, cond, areacap, fringe10, fringeshield)
-                plot_fringepartial(process, metal, minwidth, cond, areacap, fringe, fringepartial)
+                if doshield:
+                    plot_fringeshield(process, metal, minwidth * 10, cond, areacap, fringe10, fringeshield)
+                if dopartial:
+                    plot_fringepartial(process, metal, minwidth, cond, areacap, fringe, fringepartial)
         if verbose > 0:
             print('Done.')
     else:
