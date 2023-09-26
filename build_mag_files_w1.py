@@ -240,7 +240,7 @@ def build_mag_files_w1(stackupfile, startupscript, metallist, condlist, widths, 
                     if line.startswith('C'):
                         if 'A B' in line or 'B A' in line:
                             tokens = line.split()
-                            if 'p' in tokens:
+                            if 'p' in tokens[3]:
                                 csub = 1e-9 * float(tokens[3].lower().replace('p', '').replace('f', ''))
                             else:
                                 csub = 1e-9 * float(tokens[3].lower().replace('f', '')) / 1000
