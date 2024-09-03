@@ -1,59 +1,61 @@
------------------------------------------------------------------------
-capiche:  A system for analyzing foundry metal stackups using FasterCap
------------------------------------------------------------------------
-Author: Tim Edwards
+# capiche:  A system for analyzing foundry metal stackups using FasterCap
 
-Initial version: January 6, 2023
+- Author: Tim Edwards
+- Initial version: January 6, 2023
+- Updates:
 
-Updates:
-
- 1) January 12, 2023:  Corrected some errors in FasterCap input
+  - **January 12, 2023:**  Corrected some errors in FasterCap input
     files, including breaking out separate left and right segments
     for metal wires that have sidewall dielectric.  Corrected the
     handling of TOPOX over metal 5 in sky130A, which was previously
     capturing the sidewall but not the dielectric above the metal.
 
- 2) January 29, 2023:  Additional errors in FasterCap intput
+  - **January 29, 2023:**  Additional errors in FasterCap intput
     files based on feedback from the FasterCap developer.
 
------------------------------------------------------------------------
-Requirements:
 
-	python3	(with packages numpy, scipy, and matplotlib)
-	FasterCap
-	magic
-	open_pdks (installed for sky130 and/or gf180mcu processes)
+## Requirements:
 
------------------------------------------------------------------------
-Usage:
+- python3
+  - with packages numpy, scipy, and matplotlib
+- [FasterCap](https://github.com/ediloren/FasterCap)
+  - [LinAlgebra](https://github.com/ediloren/LinAlgebra)
+  - [Geometry](https://github.com/ediloren/Geometry)
+- [magic](https://github.com/RTimothyEdwards/magic)
+- [open_pdks](https://github.com/RTimothyEdwards/open_pdks) or [volare](https://github.com/efabless/volare) (installed for sky130 and/or gf180mcu processes)
+
+## Usage:
 
 	./compute_coefficients.py  sky130A/metal_stack_sky130A.py
 	./compute_coefficients.py  gf180mcuD/metal_stack_gf180mcuD.py
 
-NOTE: If FasterCap isn't in the standard execution path, set the environment
-variable FASTERCAP_EXEC to the full path of FasterCap.
+> [!NOTE]  
+> If FasterCap isn't in the standard execution path, set the environment
+variable `FASTERCAP_EXEC` to the full path of FasterCap.
 
-NOTE: If magic isn't in the standard execution path, set the environment
-variable MAGIC_EXEC to the full path of magic.
+> [!NOTE]  
+> If magic isn't in the standard execution path, set the environment
+variable `MAGIC_EXEC` to the full path of magic.
 
-NOTE: If the PDK is not installed in the default /usr/local/share/ or commonly
-used /usr/share/ directories, then pass the location of the PDK .magicrc
-startup file as the 2nd argument to "compute_coefficients.py" (see the
+> [!NOTE]  
+> If the PDK is not installed in the default `/usr/local/share/` or commonly
+used `/usr/share/` directories, then pass the location of the PDK `.magicrc`
+startup file as the 2nd argument to `compute_coefficients.py` (see the
 open_pdks installation instructions for more information).
 
-Add option "-verbose=1" for more output, or "-verbose=2" for considerably
+Add option `-verbose=1` for more output, or `-verbose=2` for considerably
 more output.
 
-This will run for a long time*, generating metal wire configurations
+This will run for a long time[^1], generating metal wire configurations
 and running them through FasterCap to generate coupling capacitance
 estimations for each geometry.  Once the data files containing all of
 the coupling capacitance tables have been generated, capiche will
 solve for coefficients to analytic solutions of parasitic capacitance,
 and generate plots of the FasterCap results vs. results extracted
-using the program "magic" (https://github.com/RTimothyEdwards/magic)
+using the program [magic](https://github.com/RTimothyEdwards/magic)
 and the analytic expressions computed using the calculated coefficients.
 
-* Around 12 hours on a modern 16-core processor, e.g., Intel core-i9
+[^1]: Around 12 hours on a modern 16-core processor, e.g., Intel core-i9
   Results are saved, so that subsequent runs will not repeat the
   FasterCap runs if the output files exist.  Most of the time is
   spent running FasterCap.
@@ -61,77 +63,78 @@ and the analytic expressions computed using the calculated coefficients.
 
 Most output is in the form of capacitance tables and SVG format plots.
 
-The main output file is <pdk_name>/analysis/coefficients.txt
+The main output file is `<pdk_name>/analysis/coefficients.txt`
 listing the following coefficients:
 
-1. areacap <metal> <conductor> <value>
+1. `areacap <metal> <conductor> <value>`
 
 	The parallel plate capacitance in aF/um^2 between
-	the bottom of metal layer <metal> and the top of
-	conductor layer <conductor>, which may be a metal or
+	the bottom of metal layer `<metal>` and the top of
+	conductor layer `<conductor>`, which may be a metal or
 	a substrate type.
 
-2. fringecap <metal> <conductor> <value>
+2. `fringecap <metal> <conductor> <value>`
 
 	The maximum fringe capacitance per edge length in aF/um
-	between <metal> and <conductor>, where <conductor> may
-	be another metal layer above or below <metal>, or a
-	substrate type.  The <conductor> is treated as an
+	between `<metal>` and `<conductor>`, where `<conductor>` may
+	be another metal layer above or below `<metal>`, or a
+	substrate type.  The `<conductor>` is treated as an
 	effectively infinite surface in all directions.
 
-3. sidewall <metal> <value> <offset>
+3. `sidewall <metal> <value> <offset>`
 
 	The value of sidewall coupling capacitance per unit
 	length satisfying the analytical expression
 
 		Ccoup = <value> / (separation + <offset>)
 
-	Where <value> is in aF/um and <offset> is in um.
+	Where `<value>` is in aF/um and `<offset>` is in um.
 
-4. fringeshield <metal> <conductor> <multiplier> <offset>
+4. `fringeshield <metal> <conductor> <multiplier> <offset>`
 
 	The fraction of fringe capacitance shielded by a
-	nearby wire on the same plane as <metal> with
+	nearby wire on the same plane as `<metal>` with
 	both wires placed over a large plane of material
-	<conductor>.  The coefficients are used in the
+	`<conductor>`.  The coefficients are used in the
 	following analytic expression for fringe shielding:
 
 		Cfrac = tanh(<multiplier> * (separation + <offset>))
 
-	Where <multiplier> is unitless and <offset> is in um.
-	"separation" is the distance from the edge of <metal>
+	Where `<multiplier>` is unitless and `<offset>` is in um.
+	"separation" is the distance from the edge of `<metal>`
 	to the edge of the nearby wire of the same metal type.
 	Cfrac represents the *unshielded* portion of the fringe
 	capacitance.
 
-5. fringepartial <metal> <conductor> <multiplier> <offset>
+5. `fringepartial <metal> <conductor> <multiplier> <offset>`
 
-	The fraction of fringe capacitance of <metal> incident
-	upon another layer <conductor> (which may be a metal
-	layer or substrate type) from the edge of <metal> out
+	The fraction of fringe capacitance of `<metal>` incident
+	upon another layer `<conductor>` (which may be a metal
+	layer or substrate type) from the edge of `<metal>` out
 	to a given distance.  The coefficients are used in the
 	following analytic expression for the partial fringe:
 
 		Cfrac = (2/pi)*arctan(<multiplier> * (distance + <offset>))
 
-	Where <multiplier> is unitless and <offset> is in um.
+	Where `<multiplier>` is unitless and `<offset>` is in um.
 	Cfrac represents the portion of the maximum fringe
-	capacitance (i.e., item (2) above) seen on <conductor>
+	capacitance (i.e., item (2) above) seen on `<conductor>`
 	from the metal edge out to distance "distance".
 
------------------------------------------------------------------------
+---
 
 Plots are made of the data taken for items (3), (4), and (5)
 above.  Each plot has three components:
 
-	a) The measurements obtained from FasterCap analysis
-	b) The best-fit curve for the analytic expressions discussed above
-	c) The measurements obtained from extracted layout in magic
+1. The measurements obtained from FasterCap analysis
+2. The best-fit curve for the analytic expressions discussed above
+3. The measurements obtained from extracted layout in magic
 
 Plots can be found in:
-	<pdk_name>/plots/sidewall	for item (3) above
-	<pdk_name>/plots/fringeshield	for item (4) above
-	<pdk_name>/plots/fringepartial	for item (5) above
+
+- `<pdk_name>/plots/sidewall`	for item (3) above
+- `<pdk_name>/plots/fringeshield`	for item (4) above
+- `<pdk_name>/plots/fringepartial`	for item (5) above
 
 Note that as of the first version of Capiche, magic encodes
 models of fringe shielding and partial fringing that are different
@@ -139,8 +142,7 @@ from the analytical expressions described above.  This is to be
 expected, as the purpose of Capiche is to improve the models used
 in magic (see "work to do", below).
 
------------------------------------------------------------------------
-Input file format:
+## Input file format:
 
 The main input file to Capiche is a python script that describes
 a process metal and dielectric stack.  The file
@@ -192,8 +194,8 @@ The list entries for each of the types above are as follows:
 
 	['d', <height>, <reference>]
 
-where <height> is the height above the substrate (assumed to be at
-zero height), and <reference> is the name of the dielectric layer
+where `<height>` is the height above the substrate (assumed to be at
+zero height), and `<reference>` is the name of the dielectric layer
 immediately above the layer (normally field oxide).
 
 	['f', <K_value>]
@@ -208,43 +210,43 @@ dimensionless unit which is multiplied by the permitivity of vacuum)
 This is a simple dielectric boundary.  All planes in a fabrication
 process are assumed to be dictated by each metal layer, so dielectric
 boundaries do not need to define a layer hight.  They are simply
-referenced to the dielectric layer name <reference> of the dielectric
-directly below the layer.  The <K_value> is the dielectric K constant.
+referenced to the dielectric layer name `<reference>` of the dielectric
+directly below the layer.  The `<K_value>` is the dielectric K constant.
 
 	['c', <K_value>, <thick1>, <thick2>, <thick3>, <reference>]
 
 This is a conformal dielectric which is formed around a metal layer
-and forms a layer above and arount the metal.  <K_value> is the
-dielectric K constant of the layer.  <thick1> is the thickness of
-the dielectric over metal, while <thick2> is the thickness of the
-dielectric where the metal is not present.  <thick3> is the sidewall
-thickness of the dielectric.  The <reference> layer is always a
+and forms a layer above and around the metal.  `<K_value>` is the
+dielectric K constant of the layer.  `<thick1>` is the thickness of
+the dielectric over metal, while `<thick2>` is the thickness of the
+dielectric where the metal is not present.  `<thick3>` is the sidewall
+thickness of the dielectric.  The `<reference>` layer is always a
 metal.
 
 	['s', <K_value>, <thick1>, <thick2>, <reference>]
 
 This is a sidewall dielectric which is formed around a metal layer
-but does not exist away from the metal.  <thick1> is the height
+but does not exist away from the metal.  `<thick1>` is the height
 of the layer above the metal, and may be zero if the dielectric is
 only on the metal sidewall and does not exist on top of the metal.
-<thick2> is the width of the dielectric from the metal sidewall
-outward.  The <reference> layer is always a metal.
+`<thick2>` is the width of the dielectric from the metal sidewall
+outward.  The `<reference>` layer is always a metal.
 
 	['m', <height>, <thick>, <ref_below>, <ref_above>]
 
 This entry represents a metal (where "metal" is taken to mean any
 conductor layer that is not a substrate type, and so includes
 layers like polysilicon or titanium nitride interconnect).
-<height> is the height of the metal above the substrate, in microns,
-and <thick> is thickness of the metal, also in microns.  The
-layer name <ref_below> is the dielectric underneath the metal, and
-the layer name <ref_above> is the dielectric above the metal.
-The <ref_above> is always the layer directly on top of the metal.
-If a sidewall has a non-zero <thick1> value, then it is the
-dielectric used for <ref_above>.  If there is a sidewall dielectric
-with zero <thick1> and there is a secondary sidewall with nonzero
-<thick1> or a conformal dielectric present, then that layer would
-be used as <ref_above>.
+`<height>` is the height of the metal above the substrate, in microns,
+and `<thick>` is thickness of the metal, also in microns.  The
+layer name `<ref_below>` is the dielectric underneath the metal, and
+the layer name `<ref_above>` is the dielectric above the metal.
+The `<ref_above>` is always the layer directly on top of the metal.
+If a sidewall has a non-zero `<thick1>` value, then it is the
+dielectric used for `<ref_above>`.  If there is a sidewall dielectric
+with zero `<thick1>` and there is a secondary sidewall with nonzero
+`<thick1>` or a conformal dielectric present, then that layer would
+be used as `<ref_above>`.
 	
 	limits['<layer_name>'] = [<minwidth>, <minspace>]
 
@@ -258,13 +260,12 @@ widths and spacings to simulate.
 This variable is used to map names used in Capiche to layer names
 used in magic.
 
-------------------------------------------------------------------------
 
-Lower level routines (imported and called from compute_coefficients.py):
-------------------------------------------------------------------------
+## Lower level routines:
 
-	build_fc_files_w1(stackupfile, metallist, condlist, widths, outfile,
-			tolerance, verbose=0)
+imported and called from `compute_coefficients.py`
+
+- `build_fc_files_w1(stackupfile, metallist, condlist, widths, outfile, tolerance, verbose=0)`
 
 	       stackupfile = name of the script file with the metal
 			stack definition
@@ -292,8 +293,7 @@ Lower level routines (imported and called from compute_coefficients.py):
 		length (by substracting the area capacitance from the result
 		and dividing by 2)
 	
-	build_fc_files_w1n(stackupfile, metallist, condlist, widths, outfile,
-			tolerance, verbose=0):
+- `build_fc_files_w1n(stackupfile, metallist, condlist, widths, outfile, tolerance, verbose=0)`
 
 	       stackupfile = name of the script file with the metal
 	               stack definition
@@ -318,8 +318,7 @@ Lower level routines (imported and called from compute_coefficients.py):
 		calculates the total coupling capacitance (per unit length)
 		between the wire and the conductor above.
 	
-	build_fc_files_w1sh(stackupfile, metallist, condlist, subname, widths,
-			seps, outfile, tolerance, verbose=0):
+- `build_fc_files_w1sh(stackupfile, metallist, condlist, subname, widths,	seps, outfile, tolerance, verbose=0)`
 
 	       stackupfile = name of the script file with the metal
 	               stack definition
@@ -361,8 +360,7 @@ Lower level routines (imported and called from compute_coefficients.py):
 		how far the wire underneath extends into the fringing
 		field.
 
-	build_fc_files_w2(stackupfile, metallist, condlist, widths, seps,
-			outfile, tolerance, verbose=0)
+- `build_fc_files_w2(stackupfile, metallist, condlist, widths, seps, outfile, tolerance, verbose=0)`
 
 	       stackupfile = name of the script file with the metal
 	               stack definition
@@ -394,8 +392,7 @@ Lower level routines (imported and called from compute_coefficients.py):
 		determine the shielding effect of a neighboring wire on
 		the amount of fringe capacitance to a conductor below.
 
-	build_fc_files_w2o(stackupfile, metal1list, metal2list, widths1,
-			widths2, seps, outfile, tolerance, verbose=0)
+- `build_fc_files_w2o(stackupfile, metal1list, metal2list, widths1, widths2, seps, outfile, tolerance, verbose=0)`
 
 	       stackupfile = name of the script file with the metal
 	               stack definition
@@ -428,8 +425,7 @@ Lower level routines (imported and called from compute_coefficients.py):
 		wire to the substrate.  It is used to validate parasitic
 		capacitance modeling for any geometry of two wires.
 
-	build_mag_files_w1(stackupfile, startupscript, metallist, condlist,
-			widths, outfile, verbose=0)
+- `build_mag_files_w1(stackupfile, startupscript, metallist, condlist, widths, outfile, verbose=0)`
 
 	       stackupfile = name of the script file with the metal
 	               stack definition
@@ -458,8 +454,7 @@ Lower level routines (imported and called from compute_coefficients.py):
 		difference between drawing a layer that is above the metal wire
 		vs. drawing a layer that is below the metal wire.
 
-	build_mag_files_w1sh(stackupfile, startupscript, metallist, condlist,
-			subname, widths, seps, outfile, verbose=0)
+- `build_mag_files_w1sh(stackupfile, startupscript, metallist, condlist, subname, widths, seps, outfile, verbose=0)`
 
 	       stackupfile = name of the script file with the metal
 	               stack definition
@@ -490,8 +485,7 @@ Lower level routines (imported and called from compute_coefficients.py):
 		formed from very long wires and the result is divided by
 		the wire length.
 
-	build_mag_files_w2(stackupfile, startupscript, metallist, condlist,
-			widths, seps, outfile, verbose=0)
+- `build_mag_files_w2(stackupfile, startupscript, metallist, condlist, widths, seps, outfile, verbose=0)`
 
 	       stackupfile = name of the script file with the metal
 	               stack definition
@@ -519,10 +513,10 @@ Lower level routines (imported and called from compute_coefficients.py):
 		formed from very long wires and the result is divided by
 		the wire length.
 
-Lower level routines called as applications:
----------------------------------------------------
+## Lower level routines called as applications:
 
-	build_fc_files_w1.py <stack_def_file> [options]
+- `build_fc_files_w1.py <stack_def_file> [options]`
+
 	    Where:
 		<stack_def_file> is the python script with the metal stack definition.
 	    And where [options] may be one or more of:
@@ -535,9 +529,10 @@ Lower level routines called as applications:
 		-verbose=<level>	     (level of diagnostic output)
 
 	    Output:  See explanation of the build_fc_files_w1() routine above.
-	    Description:  See explanaction of build_fc_files_w1() routine above.
+	    Description:  See explanation of build_fc_files_w1() routine above.
 
-	build_fc_files_w1n.py <stack_def_file> [options]
+- `build_fc_files_w1n.py <stack_def_file> [options]`
+
 	    Where:
 		<stack_def_file> is the python script with the metal stack definition.
 	    And where [options] may be one or more of:
@@ -550,9 +545,10 @@ Lower level routines called as applications:
 		-verbose=<level>	     (level of diagnostic output)
 
 	    Output:  See explanation of the build_fc_files_w1n() routine above.
-	    Description:  See explanaction of build_fc_files_w1n() routine above.
+	    Description:  See explanation of build_fc_files_w1n() routine above.
 
-	build_fc_files_w1sh.py <stack_def_file> [options]
+- `build_fc_files_w1sh.py <stack_def_file> [options]`
+
 	    Where:
 		<stack_def_file> is the python script with the metal stack definition.
 	    And where [options] may be one or more of:
@@ -566,9 +562,10 @@ Lower level routines called as applications:
 		-verbose=<level>	     (level of diagnostic output)
 
 	    Output:  See explanation of the build_fc_files_w1sh() routine above.
-	    Description:  See explanaction of build_fc_files_w1sh() routine above.
+	    Description:  See explanation of build_fc_files_w1sh() routine above.
 
-	build_fc_files_w2.py <stack_def_file> [options]
+- `build_fc_files_w2.py <stack_def_file> [options]`
+
 	    Where:
 		<stack_def_file> is the python script with the metal stack definition.
 	    And where [options] may be one or more of:
@@ -581,9 +578,10 @@ Lower level routines called as applications:
 		-verbose=<level>	     (level of diagnostic output)
 
 	    Output:  See explanation of the build_fc_files_w2() routine above.
-	    Description:  See explanaction of build_fc_files_w2() routine above.
+	    Description:  See explanation of build_fc_files_w2() routine above.
 
-	build_fc_files_w2o.py <stack_def_file> [options]
+- `build_fc_files_w2o.py <stack_def_file> [options]`
+
 	    Where:
 		<stack_def_file> is the python script with the metal stack definition.
 	    And where [options] may be one or more of:
@@ -598,9 +596,10 @@ Lower level routines called as applications:
 		-verbose=<level>	     (level of diagnostic output)
 
 	    Output:  See explanation of the build_fc_files_w2o() routine above.
-	    Description:  See explanaction of build_fc_files_w2o() routine above.
+	    Description:  See explanation of build_fc_files_w2o() routine above.
 
-	build_mag_files_w1.py <stack_def_file> <magic_startup_script> [options]
+- `build_mag_files_w1.py <stack_def_file> <magic_startup_script> [options]`
+
 	    Where:
 		<stack_def_file> is the python script with the metal stack definition.
 		<magic_startup_script> is the .magicrc file for the technology
@@ -613,9 +612,10 @@ Lower level routines called as applications:
 		-verbose=<level>	     (level of diagnostic output)
 
 	    Output:  See explanation of the build_mag_files_w1() routine above.
-	    Description:  See explanaction of build_mag_files_w1() routine above.
+	    Description:  See explanation of build_mag_files_w1() routine above.
 
-	build_mag_files_w1sh.py <stack_def_file> <magic_startup_script> [options]
+- `build_mag_files_w1sh.py <stack_def_file> <magic_startup_script> [options]`
+
 	    Where:
 		<stack_def_file> is the python script with the metal stack definition.
 		<magic_startup_script> is the .magicrc file for the technology
@@ -629,9 +629,10 @@ Lower level routines called as applications:
 		-verbose=<level>	     (level of diagnostic output)
 
 	    Output:  See explanation of the build_mag_files_w1sh() routine above.
-	    Description:  See explanaction of build_mag_files_w1sh() routine above.
+	    Description:  See explanation of build_mag_files_w1sh() routine above.
 
-	build_mag_files_w2.py <stack_def_file> <magic_startup_script> [options]
+- `build_mag_files_w2.py <stack_def_file> <magic_startup_script> [options]`
+
 	    Where:
 		<stack_def_file> is the python script with the metal stack definition.
 		<magic_startup_script> is the .magicrc file for the technology
@@ -644,23 +645,23 @@ Lower level routines called as applications:
 		-verbose=<level>	     (level of diagnostic output)
 	
 	    Output:  See explanation of the build_mag_files_w2() routine above.
-	    Description:  See explanaction of build_mag_files_w2() routine above.
+	    Description:  See explanation of build_mag_files_w2() routine above.
 
------------------------------------------------------------------------
+# Work to do:
+
 Capiche is a work in progress.
-Work to do:
------------------------------------------------------------------------
-(1) Put new analytic expressions into magic (tanh, arctan models)
-(2) Add command in magic to change the halo for parasitic capacitances
+
+1. Put new analytic expressions into magic (tanh, arctan models)
+2. Add command in magic to change the halo for parasitic capacitances
     on the command-line.
-(3) Evaluate and refine models in magic, especially for change in
+3. Evaluate and refine models in magic, especially for change in
     capacitance vs. wire width (which is currently ignored by
     magic completely;  need to understand the error bound of this
     approximation).
-(4) Add analysis of coupling across a shield wire to a wire on the
+4. Add analysis of coupling across a shield wire to a wire on the
     other side (another thing that magic ignores).
-(5) Refine sidewall coupling model to include variation with height
+5. Refine sidewall coupling model to include variation with height
     above substrate or shield plane.
-(6) Add metal stackup for GF180MCU.
-(7) Add a script to create a drawing of each geometry example for
+6. Add metal stackup for GF180MCU.
+7. Add a script to create a drawing of each geometry example for
     reference.
