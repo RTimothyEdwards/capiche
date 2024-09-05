@@ -240,14 +240,16 @@ def build_fc_files_w2o(stackupfile, metal1list, metal2list, widths1, widths2, se
                     g2line = line.split()
                     g10 = float(g2line[1])
                     g11 = float(g2line[2])
+
         if proc.stderr:
             print('Error message output from FasterCap:')
             for line in proc.stderr.splitlines():
                 print(line)
-            if proc.returncode != 0:
-                print('ERROR:  FasterCap exited with status ' + str(proc.returncode))
 
-        elif done:
+        if proc.returncode != 0:
+            print('ERROR:  FasterCap exited with status ' + str(proc.returncode))
+
+        if done:
             m1sub = g00 + g01
             m2sub = g10 + g11
             # ccoup = -(g01 + g10) / 2
