@@ -240,6 +240,22 @@ def build_mag_files_w1sh(stackupfile, startupscript, metallist, condlist, subnam
             # Just ignore this result
             pass
         else:
+
+            if proc.stdout:
+                if verbose > 1:
+                    print('Diagnostic output from Magic:')
+                for line in proc.stdout.splitlines():
+                    if verbose > 1:
+                        print(line)
+
+            if proc.stderr:
+                print('Error message output from Magic:')
+                for line in proc.stderr.splitlines():
+                    print(line)
+
+            if proc.returncode != 0:
+                print('ERROR:  Magic exited with status ' + str(proc.returncode))
+
             # Remove the .ext file
             os.remove(process + '/magic_files/w1sh/test.ext')
             # When outside of the halo, values will be missing, so assumed zero
