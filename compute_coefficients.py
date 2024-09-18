@@ -1354,13 +1354,31 @@ if __name__ == '__main__':
     if len(arguments) > 1:
         startupfile = arguments[1]
     else:
-        # Check two standard places for open_pdks installation
-        
-        startupfile = '/usr/local/share/pdk/' + process + '/libs.tech/magic/' + process + '.magicrc'
-        if not os.path.isfile(startupfile):
-            startupfile = '/usr/share/pdk/' + process + '/libs.tech/magic/' + process + '.magicrc'
+        # Try to get pdk installation from $PDK_ROOT
+        pdk_root = os.environ.get('PDK_ROOT', None)
+
+        if pdk_root:
+            # Check whether startupfile exists
+            startupfile = os.path.join(pdk_root, process, 'libs.tech', 'magic', f'{process}.magicrc')
             if not os.path.isfile(startupfile):
                 startupfile = None
+
+        else:
+            # Check standard places for open_pdks installation
+            standard_places = [
+                '/usr/local/share/pdk/',
+                '/usr/share/pdk/',
+                os.path.expanduser('~/.volare/'),
+            ]
+
+            for standard_place in standard_places:
+                # Check whether startupfile exists
+                startupfile = os.path.join(standard_place, process, 'libs.tech', 'magic', f'{process}.magicrc')
+                if os.path.isfile(startupfile):
+                    os.environ['PDK_ROOT'] = standard_place
+                    break
+                else:
+                    startupfile = None
   
     metals, substrates = generate_layers(layers)
 
@@ -1420,7 +1438,7 @@ if __name__ == '__main__':
     if startupfile:
         if verbose > 0:
             print('')
-            print('Magic startup file ' + startupfile + ' found.')
+            print(f'Magic startup file "{startupfile}" found.')
             print('Validating results against magic tech file:')
 
         validate_fringe(process, stackupfile, startupfile, metals, substrates, limits, verbose)

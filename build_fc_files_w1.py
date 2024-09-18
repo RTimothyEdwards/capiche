@@ -225,14 +225,16 @@ def build_fc_files_w1(stackupfile, metallist, condlist, widths, outfile, toleran
                 if 'g1_' in line:
                     g1line = line.split()
                     g0 = float(g1line[1])
+
         if proc.stderr:
             print('Error message output from FasterCap:')
             for line in proc.stderr.splitlines():
                 print(line)
-            if proc.returncode != 0:
-                print('ERROR:  FasterCap exited with status ' + str(proc.returncode))
 
-        elif done:
+        if proc.returncode != 0:
+            print('ERROR:  FasterCap exited with status ' + str(proc.returncode))
+
+        if done:
             csub = g0
             ssub = "{:.5g}".format(csub)
             print('Result:  Csub=' + ssub)
