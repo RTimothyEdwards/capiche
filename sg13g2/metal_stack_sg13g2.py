@@ -54,7 +54,7 @@ layers = {}
 layers['subs']	 = ['d', 0.0000, 'fox']
 layers['nwell']  = ['d', 0.0000, 'fox']
 layers['diff']   = ['d', 0.3120, 'fox'] # TODO top height
-layers['mvdiff'] = ['d', 0.3048, 'fox'] # TODO top height
+layers['hvdiff'] = ['d', 0.3048, 'fox'] # TODO top height
 layers['fox']    = ['f', 3.95]
 
 layers['gatpoly'] = ['m', 0.4, 0.16, 'fox', 'nit']
@@ -107,30 +107,14 @@ limits['topmetal1'] = [1.64, 1.64]
 limits['topmetal2'] = [2.0, 2.0]
 
 #
-# Define the (known and agreed-upon) parallel plate capacitance
-# 4 values are cap to substrate, nwell, lv-diffusion, and mv-diffusion
-# (NOTE: This section is optional.  Plate capacitances are computed
-# directly)
-
-# TODO Where can I get these values?
-platecap = {}
-#platecap['poly'] = [110.68, 110.68,  4427,  2330 ]
-#platecap['m1']   = [ 29.30,  29.30,  39.2,  39.2 ]
-#platecap['m2']   = [ 12.37,  12.37,  17.3,  17.3 ]
-#platecap['m3']   = [ 10.09,  10.09,  11.1,  11.1 ]
-#platecap['m4']   = [  7.60,   7.60,  8.14,   8.14]
-#platecap['m5']   = [  5.80,   5.80,  6.10,   6.10]
-
-#
 # Define the relationship between metal layers in this file
 # and layers in magic (for use with magic extraction)
 
-# TODO check layers
 magiclayers = {}
 magiclayers['subs'] = 'pwell'
 magiclayers['nwell'] = 'nwell'
 magiclayers['diff'] = 'ndiff'
-magiclayers['mvdiff'] = 'mvndiff'
+magiclayers['hvdiff'] = 'hvndiff'
 magiclayers['gatpoly'] = 'poly'
 magiclayers['metal1'] = 'm1'
 magiclayers['metal2'] = 'm2'
