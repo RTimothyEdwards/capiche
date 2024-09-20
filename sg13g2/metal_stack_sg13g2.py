@@ -53,8 +53,10 @@ feature_size = 0.13	# process minimum gate length (for general scaling)
 layers = {}
 layers['subs']	 = ['d', 0.0000, 'fox']
 layers['nwell']  = ['d', 0.0000, 'fox']
-layers['diff']   = ['d', 0.3120, 'fox'] # TODO top height
-layers['hvdiff'] = ['d', 0.3048, 'fox'] # TODO top height
+# LV gate oxide is 2.65nm
+layers['diff']   = ['d', 0.4 - 0.00265, 'fox']
+# HV gate oxide is 7.5nm
+layers['hvdiff'] = ['d', 0.4 - 0.0075, 'fox']
 layers['fox']    = ['f', 3.95]
 
 layers['gatpoly'] = ['m', 0.4, 0.16, 'fox', 'nit']
@@ -80,8 +82,8 @@ layers['topmetal1'] = ['m', 0.4 + 0.64 + (0.42 + 0.54) + (0.49 + 0.54) * 3 + (0.
 layers['imd6']      = ['k', 4.1, 'imd5']
 
 layers['topmetal2'] = ['m', 0.4 + 0.64 + (0.42 + 0.54) + (0.49 + 0.54) * 3 + (0.49 + 0.85) + (2.0 + 2.8), 3.0, 'imd6', 'pass']
-layers['imd7']      = ['c', 4.1, 1.5, 0.3, 1.5, 'imd6'] # TODO dielectric constant, sidewall thickness, thickness when not over the associated layer
-layers['pass']      = ['c', 6.6, 0.4, 0.3, 0.4, 'imd7'] # TODO sidewall thickness, thickness when not over the associated layer
+layers['imd7']      = ['c', 4.1, 1.5, 0.3, 1.5, 'imd6']
+layers['pass']      = ['c', 6.6, 0.4, 0.3, 0.4, 'imd7']
 layers['air']       = ['k', 3.0, 'pass']
 
 #
