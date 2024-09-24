@@ -54,9 +54,9 @@ layers = {}
 layers['subs']	 = ['d', 0.0000, 'fox']
 layers['nwell']  = ['d', 0.0000, 'fox']
 # LV gate oxide is 2.65nm
-layers['diff']   = ['d', 0.4 - 0.00265, 'fox']
+layers['diff']   = ['d', 0.4 - 0.00245, 'fox']
 # HV gate oxide is 7.5nm
-layers['hvdiff'] = ['d', 0.4 - 0.0075, 'fox']
+layers['hvdiff'] = ['d', 0.4 - 0.0073, 'fox']
 layers['fox']    = ['f', 3.95]
 
 layers['gatpoly'] = ['m', 0.4, 0.16, 'fox', 'nit']
