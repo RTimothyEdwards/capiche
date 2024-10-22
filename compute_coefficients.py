@@ -341,7 +341,7 @@ def compute_fringe(process, metals, substrates, areacap, size):
         width = minwidth * size
 
         for subs in substrates:
-            if 'diff' in subs and metal == 'poly':
+            if 'diff' in subs and 'poly' in metal:
                 continue
             with open(process + '/analysis/fringe/' + metal + '_' + subs + '.txt', 'r') as ifile:
                 lines = ifile.read().splitlines()
@@ -441,7 +441,7 @@ def compute_fringeshield(process, metals, limits, substrates, areacap, fringe10)
         for conductor in conductors:
 
             # Ignore poly over diff, which is not considered a parasitic
-            if 'diff' in conductor and metal == 'poly':
+            if 'diff' in conductor and 'poly' in metal:
                 continue
 
             xdata = []
@@ -564,7 +564,7 @@ def validate_fringe(process, stackupfile, startupfile, metals, substrates, limit
         wstop = '{:.2f}'.format(11 * minwidth)
         wstep = '{:.2f}'.format(9 * minwidth)
         for subs in substrates:
-            if 'diff' in subs and metal == 'poly':
+            if 'diff' in subs and 'poly' in metal:
                 continue
             if not os.path.isfile(process + '/validate/fringe/' + metal + '_' + subs + '.txt'):
                 if verbose > 0:
@@ -732,7 +732,7 @@ def print_coefficients(metals, substrates, areacap, fringe, sidewall, fringeshie
 
         print('  areacap (aF/um^2) to:')
         for subs in substrates:
-            if 'diff' in subs and metal == 'poly':
+            if 'diff' in subs and 'poly' in metal:
                 continue
             print('    ' + subs + ' = {:.3f}'.format(areacap[metal + '+' + subs]))
         for cond in metals:
@@ -744,7 +744,7 @@ def print_coefficients(metals, substrates, areacap, fringe, sidewall, fringeshie
         print('')
         print('  fringecap (aF/um) to:')
         for subs in substrates:
-            if 'diff' in subs and metal == 'poly':
+            if 'diff' in subs and 'poly' in metal:
                 continue
             print('    ' + subs + ' = {:.3f}'.format(fringe[metal + '+' + subs]))
         for cond in metals:
@@ -762,7 +762,7 @@ def print_coefficients(metals, substrates, areacap, fringe, sidewall, fringeshie
             print('')
             print('  fringe shielding to:')
             for subs in substrates:
-                if 'diff' in subs and metal == 'poly':
+                if 'diff' in subs and 'poly' in metal:
                     continue
                 print('    ' + subs + ':')
                 print('    multiplier = {:.3f}'.format(fringeshield[metal + '+' + subs][0]))
@@ -798,7 +798,7 @@ def save_coefficients(metals, substrates, areacap, fringe, sidewall, fringeshiel
     with open(outfile, 'w') as ofile:
         for metal in metals:
             for subs in substrates:
-                if 'diff' in subs and metal == 'poly':
+                if 'diff' in subs and 'poly' in metal:
                     continue
                 print('areacap ' + metal + ' ' + subs + ' {:.3f}'.format(areacap[metal + '+' + subs]), file=ofile)
             for cond in metals:
@@ -808,7 +808,7 @@ def save_coefficients(metals, substrates, areacap, fringe, sidewall, fringeshiel
                     except:
                         print('areacap ' + metal + ' ' + cond + ' {:.3f}'.format(areacap[cond + '+' + metal]), file=ofile)
             for subs in substrates:
-                if 'diff' in subs and metal == 'poly':
+                if 'diff' in subs and 'poly' in metal:
                     continue
                 print('fringecap ' + metal + ' ' + subs + ' {:.3f}'.format(fringe[metal + '+' + subs]), file=ofile)
             for cond in metals:
@@ -821,7 +821,7 @@ def save_coefficients(metals, substrates, areacap, fringe, sidewall, fringeshiel
 
             if fringeshield:
                 for subs in substrates:
-                    if 'diff' in subs and metal == 'poly':
+                    if 'diff' in subs and 'poly' in metal:
                         continue
                     print('fringeshield ' + metal + ' ' + subs + ' ' + '{:.3f}'.format(fringeshield[metal + '+' + subs][0]) + ' ' + '{:.3f}'.format(fringeshield[metal + '+' + subs][1]), file=ofile)
                 for cond in metals:
@@ -856,7 +856,7 @@ def save_coefficients(metals, substrates, areacap, fringe, sidewall, fringeshiel
         with open('test.dat', 'w') as ofile:
             for metal in metals:
                 for subs in substrates:
-                    if 'diff' in subs and metal == 'poly':
+                    if 'diff' in subs and 'poly' in metal:
                         continue
                     if metal + '+' + subs not in fringepartial:
                         fringepartial[metal + '+' + subs] = [0, 0]
@@ -1361,6 +1361,7 @@ if __name__ == '__main__':
             # Check whether startupfile exists
             startupfile = os.path.join(pdk_root, process, 'libs.tech', 'magic', f'{process}.magicrc')
             if not os.path.isfile(startupfile):
+                print(f'Could not find startupfile: {startupfile}')
                 startupfile = None
 
         else:
