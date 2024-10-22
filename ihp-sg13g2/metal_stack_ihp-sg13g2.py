@@ -1,10 +1,10 @@
 #
-# metal_stack_sg13g2.py ---
+# metal_stack_ihp-sg13g2.py ---
 #
 #	Input file for build_fc_files.py.
-#	This describes the metal stack for the sg13g2 process
+#	This describes the metal stack for the ihp-sg13g2 process
 #
-process = 'sg13g2'	# Process name
+process = 'ihp-sg13g2'	# Process name
 feature_size = 0.13	# process minimum gate length (for general scaling)
 
 # Well/substrate is assumed to define Y = 0.
