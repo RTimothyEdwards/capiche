@@ -6,5 +6,7 @@
 *.eps
 *.spice
 *.ext
+*.tech
+*.magicrc
 __pycache__
 archive

@@ -51,8 +51,8 @@
 
 import os
 import sys
-import numpy
 import time
+import numpy
 import datetime
 try:
     import scipy
@@ -91,17 +91,7 @@ from build_mag_files_w1 import build_mag_files_w1
 from build_mag_files_w1sh import build_mag_files_w1sh
 from build_mag_files_w2 import build_mag_files_w2
 
-#--------------------------------------------------------------
-# Usage statement
-#--------------------------------------------------------------
-
-def usage():
-    print('Usage:  compute_coefficients.py <stack_def_file> [<magic_startup_file>] [options]')
-    print('  Where [options] may be one or more of:')
-    print('     -verbose=<value>    (Diagnostic level)')
-    print('     -noshield           (Do not run fringe shield simulations)') 
-    print('     -nopartial          (Do not run partial fringe simulations)') 
-    print('     -nosidewall         (Do not run sidewall simulations)') 
+from create_mag_techfile import create_mag_techfile
 
 #--------------------------------------------------------------
 # Generate lists of metal types and substrate types from the
@@ -148,7 +138,7 @@ def generate_fringe(process, stackupfile, metals, substrates, limits, verbose=0)
     for metal in metals:
         minwidth = limits[metal][0]
         for subs in substrates:
-            if 'diff' in subs and metal == 'poly':
+            if 'diff' in subs and 'poly' in metal:
                 continue
             if not os.path.isfile(process + '/analysis/fringe/' + metal + '_' + subs + '.txt'):
                 if verbose > 0:
@@ -1270,68 +1260,29 @@ def print_current_time(verbose):
 # Invoke compute_coefficients.py as an application
 #--------------------------------------------------------------
 
-if __name__ == '__main__':
+def compute_coefficients(stack_def_file, magic_startup_file=None, doshield=True, dopartial=True, dosidewall=True, verbose=0):
 
-    verbose = 0
-    startupfile = None
-    doshield = True
-    dopartial = True
-    dosidewall = True
-
-    #---------------------------------------------------
-    # Get arguments
-    #---------------------------------------------------
-
-    options = []
-    arguments = []
-    for item in sys.argv[1:]:
-        if item.find('-', 0) == 0:
-            options.append(item)
-        else:
-            arguments.append(item)
-
-    if len(arguments) != 1 and len(arguments) != 2:
-        print('Argument length is ' + str(len(arguments)))
-        usage()
-        sys.exit(1)
-
-    #--------------------------------------------------------------
-    # Get options
-    #--------------------------------------------------------------
-
-    for option in options:
-        tokens = option.split('=')
-        if len(tokens) != 2:
-            if tokens[0] == '-noshield':
-                doshield = False
-            elif tokens[0] == '-nopartial':
-                dopartial = False
-            elif tokens[0] == '-nosidewall':
-                dosidewall = False
-            elif tokens[0] == '-verbose':
-                verbose = 1
-            print('Error:  Option "' + option + '":  Option must be in form "-key=<value>".')
-            usage()
-            continue
-        if tokens[0] == '-verbose':
-            try:
-                verbose = int(tokens[1])
-            except:
-                print('Error:  Verbose level "' + tokens[1] + '" is not numeric.')
-                continue
+    startupfile = magic_startup_file
 
     #--------------------------------------------------------------
     # Obtain the metal stack.  The metal stack file is in the
     # format of executable python, so use exec().
     #--------------------------------------------------------------
 
-    stackupfile = arguments[0]
+    stackupfile = stack_def_file
+
+    stackupfile_dict = {}
 
     try:
-        exec(open(stackupfile, 'r').read())
+        exec(open(stackupfile, 'r').read(), stackupfile_dict)
     except:
         print('Error:  No metal stack file ' + stackupfile + '!')
         sys.exit(1)
+
+    print(globals())
+    print(locals())
+    print(stackupfile_dict['feature_size'])
+    print(stackupfile_dict['process'])
 
     try:
         process
@@ -1351,9 +1302,7 @@ if __name__ == '__main__':
         print('Error:  Metal stack does not define limits!')
         sys.exit(1)
 
-    if len(arguments) > 1:
-        startupfile = arguments[1]
-    else:
+    if magic_startup_file == None:
         # Try to get pdk installation from $PDK_ROOT
         pdk_root = os.environ.get('PDK_ROOT', None)
 
@@ -1433,6 +1382,42 @@ if __name__ == '__main__':
     print_coefficients(metals, substrates, areacap, fringe, sidewall, fringeshield, fringepartial)
     save_coefficients(metals, substrates, areacap, fringe, sidewall, fringeshield, fringepartial, process + '/analysis/coefficients.txt')
 
+    # Make sure the magic directory exists
+    os.makedirs(os.path.join(process, 'magic'), exist_ok=True)
+
+    # TODO write magicrc file
+    startupfile = os.path.abspath(os.path.join(process, 'magic', f'{process}.magicrc'))
+    
+    with open(os.path.join(process, 'magic', f'{process}.magicrc'), 'w') as magicrc_file:
+        magicrc_file.write(f"""puts stdout "Sourcing dummy .magicrc for technology {process} generated by capiche ..."
+
+# Put grid on 0.005 pitch.  This is important, as some commands don't
+# rescale the grid automatically (such as lef read?).
+
+set scalefac [tech lambda]
+if {{[lindex $scalefac 1] < 2}} {{
+    scalegrid 1 2
+}}
+
+# loading technology
+tech load [file dirname [file normalize [info script]]]/{process}.tech
+
+# halt on error
+if {{[tech name] != "{process}"}} {{quit -noprompt}}
+
+# set units to lambda grid 
+snap lambda
+
+# set standard power, ground, and substrate names
+set VDD VPWR
+set GND VGND
+set SUB VSUBS
+""")
+
+
+    create_mag_techfile(stackupfile, metals, substrates, areacap, fringe, sidewall, fringeshield, fringepartial, verbose)
+
+    
     # Only run validation against magic if a magic startup file was specified on the
     # command line.
 

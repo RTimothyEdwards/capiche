@@ -125,3 +125,48 @@ magiclayers['metal4'] = 'm4'
 magiclayers['metal5'] = 'm5'
 magiclayers['topmetal1'] = 'm6'
 magiclayers['topmetal2'] = 'm7'
+
+# Optional - automatic tech file generation for magic
+
+magicplanes = {}
+magicplanes['subs'] = 'well'
+magicplanes['nwell'] = 'well'
+magicplanes['diff'] = 'active'
+magicplanes['hvdiff'] = 'active'
+magicplanes['gatpoly'] = 'active'
+magicplanes['metal1'] = 'metal1'
+magicplanes['metal2'] = 'metal2'
+magicplanes['metal3'] = 'metal3'
+magicplanes['metal4'] = 'metal4'
+magicplanes['metal5'] = 'metal5'
+magicplanes['topmetal1'] = 'metal6'
+magicplanes['topmetal2'] = 'metal7'
+
+magicaliases = {}
+magicaliases['subs'] = None
+magicaliases['nwell'] = None
+magicaliases['diff'] = 'alldifflvnonfet'
+magicaliases['hvdiff'] = 'alldiffhvnonfet'
+magicaliases['gatpoly'] = 'allpoly'
+magicaliases['metal1'] = 'allm1'
+magicaliases['metal2'] = 'allm2'
+magicaliases['metal3'] = 'allm3'
+magicaliases['metal4'] = 'allm4'
+magicaliases['metal5'] = 'allm5'
+magicaliases['topmetal1'] = 'allm6'
+magicaliases['topmetal2'] = 'allm7'
+
+magicstyles = {}
+magicstyles['subs'] = 'pwell'
+magicstyles['nwell'] = 'nwell'
+magicstyles['diff'] = 'ndiffusion'
+magicstyles['hvdiff'] = 'ndiffusion'
+magicstyles['gatpoly'] = 'polysilicon'
+magicstyles['metal1'] = 'metal1'
+magicstyles['metal2'] = 'metal2'
+magicstyles['metal3'] = 'metal3'
+magicstyles['metal4'] = 'metal4'
+magicstyles['metal5'] = 'metal5'
+magicstyles['topmetal1'] = 'metal6'
+magicstyles['topmetal2'] = 'metal7'
+

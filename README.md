@@ -9,9 +9,9 @@
     for metal wires that have sidewall dielectric.  Corrected the
     handling of TOPOX over metal 5 in sky130A, which was previously
     capturing the sidewall but not the dielectric above the metal.
-
   - **January 29, 2023:**  Additional errors in FasterCap intput
     files based on feedback from the FasterCap developer.
+  - **December 2024:**  Automatically generate tech file for magic - Leo
 
 
 ## Requirements:
@@ -258,6 +258,22 @@ widths and spacings to simulate.
 	magiclayers['<layer_name>'] = '<paint_type>'
 
 This variable is used to map names used in Capiche to layer names used in magic.
+
+    magicextractstyle = `<extract_style>`
+
+This variable is used to set the extract style in magic.
+
+	magicplanes['<layer_name>'] = '<TODO>'
+
+TODO
+
+	magicaliases['<layer_name>'] = '<TODO>'
+
+TODO
+
+	magicstyles['<layer_name>'] = '<TODO>'
+
+TODO
 
 > [!NOTE]  
 > Capiche skips the simulation if `poly` is in the name of the metal (conductor) layer and `diff` is in the name of the diffusion layer, since poly to diff is a transistor gate and not parasitic.
