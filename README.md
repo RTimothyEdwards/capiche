@@ -9,9 +9,9 @@
     for metal wires that have sidewall dielectric.  Corrected the
     handling of TOPOX over metal 5 in sky130A, which was previously
     capturing the sidewall but not the dielectric above the metal.
-
   - **January 29, 2023:**  Additional errors in FasterCap intput
     files based on feedback from the FasterCap developer.
+  - **December 2024:**  Automatically generate tech file for magic - Leo
 
 
 ## Requirements:
@@ -38,8 +38,8 @@ variable `FASTERCAP_EXEC` to the full path of FasterCap.
 variable `MAGIC_EXEC` to the full path of magic.
 
 > [!NOTE]  
-> If the PDK is not installed in the default `/usr/local/share/` or commonly
-used `/usr/share/` directories, then pass the location of the PDK `.magicrc`
+> If `PDK_ROOT` is not set and the PDK is not installed in the default `/usr/local/share/` or commonly
+used `/usr/share/` or `~/.volare` directories, then pass the location of the PDK `.magicrc`
 startup file as the 2nd argument to `compute_coefficients.py` (see the
 open_pdks installation instructions for more information).
 
@@ -257,9 +257,29 @@ widths and spacings to simulate.
 
 	magiclayers['<layer_name>'] = '<paint_type>'
 
-This variable is used to map names used in Capiche to layer names
-used in magic.
+This variable is used to map names used in Capiche to layer names used in magic.
 
+    magicextractstyle = `<extract_style>`
+
+This variable is used to set the extract style in magic.
+
+	magicplanes['<layer_name>'] = '<TODO>'
+
+TODO
+
+	magicaliases['<layer_name>'] = '<TODO>'
+
+TODO
+
+	magicstyles['<layer_name>'] = '<TODO>'
+
+TODO
+
+> [!NOTE]  
+> Capiche skips the simulation if `poly` is in the name of the metal (conductor) layer and `diff` is in the name of the diffusion layer, since poly to diff is a transistor gate and not parasitic.
+> In the future it may make sense to add an option to the input file whether a layer is `poly` or `diff`.
+
+FasterCap isn't in the standard execution path, set the environment variable `FASTERCAP_EXEC` to the full path of FasterCap.
 
 ## Lower level routines:
 

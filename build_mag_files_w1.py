@@ -180,9 +180,11 @@ def build_mag_files_w1(stackupfile, startupscript, metallist, condlist, widths, 
             for width in widths:
                 wspec = "{:.2f}".format(width)
                 wsspec = "{:.2f}".format(width).replace('.', 'p')
-                filename = metal + '_' + conductor + '_w_' + wsspec + '.tcl'
+                cellname = metal + '_' + conductor + '_w_' + wsspec
+                filename = cellname + '.tcl'
+                
                 with open(process + '/magic_files/w1/' + filename, 'w') as ofile:
-                    print('load test -silent', file=ofile)
+                    print(f'load {cellname} -silent', file=ofile)
                     print('box values 0 0 ' + wspec + 'um 1000um', file=ofile)
                     print('paint ' + mmetal, file=ofile)
                     print('label A c ' + mmetal, file=ofile)
@@ -246,11 +248,14 @@ def build_mag_files_w1(stackupfile, startupscript, metallist, condlist, widths, 
             if proc.returncode != 0:
                 print('ERROR:  Magic exited with status ' + str(proc.returncode))
 
+            extfile = os.path.join(process, 'magic_files', 'w1', os.path.splitext(file)[0] + '.ext')
+            spicefile = os.path.join(process, 'magic_files', 'w1', os.path.splitext(file)[0] + '.spice')
+
             # Remove the .ext file
-            os.remove(process + '/magic_files/w1/test.ext')
+            os.remove(extfile)
             # Read output SPICE file
-            csub = 0.0
-            with open(process + '/magic_files/w1/test.spice', 'r') as ifile:
+            csub = None
+            with open(spicefile, 'r') as ifile:
                 spicelines = ifile.read().splitlines()
                 for line in spicelines:
                     if line.startswith('C'):
@@ -260,10 +265,13 @@ def build_mag_files_w1(stackupfile, startupscript, metallist, condlist, widths, 
                                 csub = 1e-9 * float(tokens[3].lower().replace('p', '').replace('f', ''))
                             else:
                                 csub = 1e-9 * float(tokens[3].lower().replace('f', '')) / 1000
-                    
+            
+            if csub == None:
+                print(f'Error: Could not find result in {spicefile}')
+                csub = 0
 
             # Remove the SPICE file
-            os.remove(process + '/magic_files/w1/test.spice')
+            #os.remove(spicefile)
 
             scsub = "{:.5g}".format(csub)
             print('Result:  Csub=' + scsub)

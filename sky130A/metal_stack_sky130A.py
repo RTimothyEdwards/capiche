@@ -117,3 +117,45 @@ magiclayers['m2'] = 'm2'
 magiclayers['m3'] = 'm3'
 magiclayers['m4'] = 'm4'
 magiclayers['m5'] = 'm5'
+
+# Optional - automatic tech file generation for magic
+
+magicplanes = {}
+magicplanes['subs'] = 'well'
+magicplanes['nwell'] = 'well'
+magicplanes['diff'] = 'active'
+magicplanes['mvdiff'] = 'active'
+magicplanes['poly'] = 'active'
+magicplanes['li'] = 'locali'
+magicplanes['m1'] = 'metal1'
+magicplanes['m2'] = 'metal2'
+magicplanes['m3'] = 'metal3'
+magicplanes['m4'] = 'metal4'
+magicplanes['m5'] = 'metal5'
+
+magicaliases = {}
+magicaliases['subs'] = None
+magicaliases['nwell'] = None
+magicaliases['diff'] = 'alldifflvnonfet'
+magicaliases['mvdiff'] = 'alldiffmvnonfet'
+magicaliases['poly'] = 'allpoly'
+magicaliases['li'] = 'allli'
+magicaliases['m1'] = 'allm1'
+magicaliases['m2'] = 'allm2'
+magicaliases['m3'] = 'allm3'
+magicaliases['m4'] = 'allm4'
+magicaliases['m5'] = 'allm5'
+
+magicstyles = {}
+magicstyles['subs'] = 'pwell'
+magicstyles['nwell'] = 'nwell'
+magicstyles['diff'] = 'ndiffusion'
+magicstyles['mvdiff'] = 'ndiffusion'
+magicstyles['poly'] = 'polysilicon'
+magicstyles['li'] = 'metal1'
+magicstyles['m1'] = 'metal2'
+magicstyles['m2'] = 'metal3'
+magicstyles['m3'] = 'metal4'
+magicstyles['m4'] = 'metal5'
+magicstyles['m5'] = 'metal6'
+
