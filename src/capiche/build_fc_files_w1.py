@@ -19,8 +19,8 @@ import importlib
 import subprocess
 
 # Local files
-from ordered_stack import ordered_stack
-from generate_geometry import generate_one_wire_file
+from .ordered_stack import ordered_stack
+from .generate_geometry import generate_one_wire_file
 
 #--------------------------------------------------------------
 # Usage statement
@@ -222,7 +222,7 @@ def build_fc_files_w1(stackupfile, metallist, condlist, widths, outfile, toleran
             for line in proc.stdout.splitlines():
                 if verbose > 1:
                     print(line)
-                if 'g1_' in line:
+                if line.startswith('g1_'):
                     g1line = line.split()
                     g0 = float(g1line[1])
 

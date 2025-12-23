@@ -1,17 +1,16 @@
 #!/usr/bin/env python3
 #
-# build_fc_files_w2.py --
+# build_fc_files_w1n.py --
 #
 #	Create FasterCap files to simulate many different
 #	geometries to capture all needed information for
-#	parasitic capacitance modeling.  Version _w2
-#	generates output for two neighboring wires of the
-#	same metal, with no shield between the wires and
-#	substrate (NOTE:  substrate can be replaced with
-#	another wire as the reference conductor).
+#	parasitic capacitance modeling.  Version _w1n
+#	represents a single wire over substrate and under
+#	another wire of effectively infinite width, used
+#	to measure the total upward fringe capacitance.
 #
 # Written by Tim Edwards
-# November 26, 2022
+# December 23, 2022
 #
 import os
 import sys
@@ -19,45 +18,43 @@ import numpy
 import subprocess
 
 # Local files
-from ordered_stack import ordered_stack
-from generate_geometry import generate_two_wire_file
+from .ordered_stack import ordered_stack
+from .generate_geometry import generate_1wire_2plane_file
 
 #--------------------------------------------------------------
 # Usage statement
 #--------------------------------------------------------------
 
 def usage():
-    print('Usage:  build_fc_files_w2.py <stack_def_file> [options]')
+    print('Usage:  build_fc_files_w1n.py <stack_def_file> [options]')
     print('  Where [options] may be one or more of:')
-    print('     -metals=<metal>[,...]  (restrict wire type to one or more metals)')
-    print('     -sub[strate]=<substrate>[,...] (restrict substrate type)')
+    print('     -metals=<metal>[,...]    (restrict wire type to one or more metals)')
+    print('     -shields=<metal>[,...]   (restrict shield type to one or more metals)')
+    print('     -sub[strate]=<substrate> (substrate type)')
     print('     -width=<start>,<stop>,<step> (wire width range, in microns)')
-    print('     -sep=<start>,<stop>,<step>   (separation range, in microns)')
     print('     -tol[erance]=<value>         (FasterCap tolerance)')
     print('     -file=<name>                 (output filename for results)')
 
 #--------------------------------------------------------------
 # The main routine
 #
-# build_fc_files_w2(stackupfile, metallist, condlist,
-#       widths, seps, outfile, tolerance, verbose):
+# build_fc_files_w1n(stackupfile, metallist, condlist, widths,
+#       outfile, tolerance, verbose):
 #
 # where:
 #       stackupfile = name of the script file with the metal
 #               stack definition
 #       metallist = list of metals to test as wires
-#       condlist = list of conductors/substrates to test as shields
+#       condlist = list of conductors/substrates to test
 #       widths = list with wire widths to test
-#       seps = list with wire-to-shield separations to test
 #       outfile = name of output file with results
 #       tolerance = initial tolerance to use for FasterCap
 #       verbose = diagnostic output level
 #--------------------------------------------------------------
 
-def build_fc_files_w2(stackupfile, metallist, condlist, widths, seps, outfile, tolerance, verbose=0):
+def build_fc_files_w1n(stackupfile, metallist, condlist, widths, outfile, tolerance, verbose=0):
 
     use_default_width = True if not widths else False
-    use_default_sep = True if not seps else False
 
     #--------------------------------------------------------------
     # Obtain the metal stack.  The metal stack file is in the
@@ -101,10 +98,13 @@ def build_fc_files_w2(stackupfile, metallist, condlist, widths, seps, outfile, t
         if layer[0] == 'm':
             metals.append(lname)
 
-    substrates = []
+    substrate = None
     for lname, layer in layers.items():
         if layer[0] == 'd':
-            substrates.append(lname)
+            substrate = lname
+            # Use only the first defined substrate---this is unimportant
+            # to the calculation of capacitance between metals.
+            break
 
     # Check options
 
@@ -113,34 +113,36 @@ def build_fc_files_w2(stackupfile, metallist, condlist, widths, seps, outfile, t
             print('Error:  Wire metal "' + metal + '" is not in the stackup!')
             metallist.remove(metal)
 
-    for conductor in condlist.copy():
-        if conductor not in substrates and conductor not in metals:
-            print('Error:  Substrate type "' + conductor + '" is not in the stackup!')
-            condlist.remove(conductor)
+    for metal in condlist.copy():
+        if metal not in metals:
+            print('Error:  Shield metal "' + metal + '" is not in the stackup!')
+            condlist.remove(metal)
 
     # Set default values if not specified in options
 
     if metallist == []:
-        print('Using all metals in stackup for set of wire types to test')
-        metallist = metals
+        print('Using all metals (except topmost) in stackup for set of wire types to test')
+        metallist = metals[:-1]
 
     if condlist == []:
-        print('Using all substrate types in stackup for set of types to test')
-        condlist = substrates.copy()
+        print('Using all metals in stackup for set of shield types to test')
+        condlist = metals
 
     if verbose > 0:
         print('Simulation parameters:')
         print('   Wire widths = ' + str(widths))
-        print('   Wire separations = ' + str(seps))
         print('')
 
     filelist = []
 
     # Make sure the working directory exists
-    os.makedirs(process + '/fastercap_files/w2', exist_ok=True)
+    os.makedirs(process + '/fastercap_files/w1n', exist_ok=True)
+
+    # Since this calculation is for fringing fields from a wire upward
+    # to a layer above, do this only for metals up to but not including
+    # the topmost metal.
 
     for metal in metallist:
-
         if use_default_width == True:
             minwidth = limits[metal][0]
             wstart = minwidth
@@ -148,22 +150,23 @@ def build_fc_files_w2(stackupfile, metallist, condlist, widths, seps, outfile, t
             wstep = 9 * minwidth
             widths = list(numpy.arange(wstart, wstop, wstep))
 
-        if use_default_sep == True:
-            minsep = limits[metal][1]
-            sstart = minsep
-            sstop = 10 * minsep + 0.5 * minsep
-            sstep = minsep
-            seps = list(numpy.arange(sstart, sstop, sstep))
+        # "conductors" in this file represents the metal above the
+        # wire structure under test, so reverse the layers and
+        # enumerate all of the metals above this one.
+        if condlist == []:
+            conductors = []
+            for lname, layer in reversed(layers.items()):
+                if lname == metal:
+                    break
+                elif layer[0] == 'm':
+                    conductors.append(lname)
+        else:
+            conductors = condlist
 
-        for conductor in condlist:
-
-            # Poly to diff is a transistor gate and is not a parasitic.
-            if 'poly' in metal and 'diff' in conductor:
-                continue
-
+        for conductor in conductors:
             # Generate the stack for this particular combination of
             # reference conductor and metal
-            pstack = ordered_stack(conductor, [metal], layers)
+            pstack = ordered_stack(substrate, [metal, conductor], layers)
 
             # (Diagnostic) Print out the stack
             if verbose > 1:
@@ -172,14 +175,11 @@ def build_fc_files_w2(stackupfile, metallist, condlist, widths, seps, outfile, t
                     print(str(p))
                 print('')
 
-            for separation in seps:
-                sspec = "{:.2f}".format(separation).replace('.', 'p')
-                for width in widths:
-                    wspec = "{:.2f}".format(width).replace('.', 'p')
-                    filename = process + '/fastercap_files/w2/' + metal + '_' + conductor + '_w_' + wspec + '_s_' + sspec + '.lst'
-                    spacing = separation + width
-                    generate_two_wire_file(filename, conductor, metal, width, spacing, pstack)
-                    filelist.append(filename)
+            for width in widths:
+                wspec = "{:.2f}".format(width).replace('.', 'p')
+                filename = process + '/fastercap_files/w1n/' + metal + '_' + conductor + '_w_' + wspec + '.lst'
+                generate_1wire_2plane_file(filename, substrate, conductor, metal, width, pstack)
+                filelist.append(filename)
 
     #--------------------------------------------------------------
     # Simulate with fastercap
@@ -226,11 +226,11 @@ def build_fc_files_w2(stackupfile, metallist, condlist, widths, seps, outfile, t
             for line in proc.stdout.splitlines():
                 if verbose > 1:
                     print(line)
-                if 'g1_' in line:
+                if line.startswith('g1_'):
                     g1line = line.split()
                     g00 = float(g1line[1])
                     g01 = float(g1line[2])
-                elif 'g2_' in line:
+                elif line.startswith('g2_'):
                     g2line = line.split()
                     g10 = float(g2line[1])
                     g11 = float(g2line[2])
@@ -244,14 +244,11 @@ def build_fc_files_w2(stackupfile, metallist, condlist, widths, seps, outfile, t
             print('ERROR:  FasterCap exited with status ' + str(proc.returncode))
 
         if done:
-            cdiag = (g00 + g11) / 2
-            # ccoup = -(g01 + g10) / 2
+            # Note:  Where g01 != g10, use the average value.
+            # ccoup = -(g01 + g10) / 2.0
             ccoup = -g10
-            csub = cdiag - ccoup
-
             scoup = "{:.5g}".format(ccoup)
-            ssub = "{:.5g}".format(csub)
-            print('Result:  Ccoup=' + scoup + '  Csub=' + ssub)
+            print('Result:  Ccoup=' + scoup)
 
             # Add to results
             fileroot = os.path.splitext(file)[0]
@@ -260,8 +257,7 @@ def build_fc_files_w2(stackupfile, metallist, condlist, widths, seps, outfile, t
             metal = values[0]
             conductor = values[1]
             width = float(values[3].replace('p', '.'))
-            sep = float(values[5].replace('p', '.'))
-            presults.append([metal, conductor, width, sep, csub, ccoup])
+            presults.append([metal, conductor, width, ccoup])
 
     #--------------------------------------------------------------
     # Save (and print) results
@@ -282,10 +278,8 @@ def build_fc_files_w2(stackupfile, metallist, condlist, widths, seps, outfile, t
                 metal = presult[0]
                 conductor = presult[1]
                 swidth = "{:.4f}".format(presult[2])
-                ssep = "{:.4f}".format(presult[3])
-                ssub = "{:.5g}".format(presult[4])
-                scoup = "{:.5g}".format(presult[5])
-                print(metal + ' ' + conductor + ' ' + swidth + ' ' + ssep + ' ' + ssub + ' ' + scoup, file=ofile)
+                scoup = "{:.5g}".format(presult[3])
+                print(metal + ' ' + conductor + ' ' + swidth + ' ' + scoup, file=ofile)
 
     # Also print results to the terminal
     print('Results:')
@@ -293,15 +287,13 @@ def build_fc_files_w2(stackupfile, metallist, condlist, widths, seps, outfile, t
         metal = presult[0]
         conductor = presult[1]
         swidth = "{:.4f}".format(presult[2])
-        ssep = "{:.4f}".format(presult[3])
-        ssub = "{:.5g}".format(presult[4])
-        scoup = "{:.5g}".format(presult[5])
-        print(metal + ' ' + conductor + ' ' + swidth + ' ' + ssep + ' ' + ssub + ' ' + scoup)
+        scoup = "{:.5g}".format(presult[3])
+        print(metal + ' ' + conductor + ' ' + swidth + ' ' + scoup)
 
     return 0
 
 #---------------------------------------------------
-# Invoke build_fc_files_w2.py as an application
+# Invoke build_fc_files_w1n.py as an application
 #---------------------------------------------------
 
 if __name__ == '__main__':
@@ -325,10 +317,7 @@ if __name__ == '__main__':
     wstart = 0
     wstop = 0
     wstep = 0
-    use_default_sep = True
-    sstart = 0
-    sstop = 0
-    sstep = 0
+    substrate = None
     outfile = None
     verbose = 0
     tolerance = 0.01
@@ -355,8 +344,10 @@ if __name__ == '__main__':
                 continue
         elif tokens[0] == '-metals':
             metallist = tokens[1].split(',')
-        elif tokens[0].startswith('-sub') or tokens[0] == '-conductors':
+        elif tokens[0] == '-shields':
             condlist = tokens[1].split(',')
+        elif tokens[0] == '-sub' or tokens[0] == '-substrate':
+            subname = tokens[1]
         elif tokens[0] == '-width':
             rangelist = tokens[1].split(',')
             if len(rangelist) != 3:
@@ -382,31 +373,6 @@ if __name__ == '__main__':
                 print('Error:  Wire width step value "' + optstr + '" is not numeric.')
                 continue
             use_default_width = False
-        elif tokens[0] == '-sep':
-            rangelist = tokens[1].split(',')
-            if len(rangelist) != 3:
-                print('Error:  Separation needs three comma-separated values')
-                usage()
-                continue
-            optstr = rangelist[0].replace('um','')
-            try:
-                sstart = float(optstr)
-            except:
-                print('Error:  Separation start value "' + optstr + '" is not numeric.')
-                continue
-            optstr = rangelist[1].replace('um','')
-            try:
-                sstop = float(optstr)
-            except:
-                print('Error:  Separation end value "' + optstr + '" is not numeric.')
-                continue
-            optstr = rangelist[2].replace('um','')
-            try:
-               sstep = float(optstr)
-            except:
-                print('Error:  Separation step value "' + optstr + '" is not numeric.')
-                continue
-            use_default_sep = False
         else:
             print('Error:  Unknown option "' + option + '"')
             usage()
@@ -419,11 +385,6 @@ if __name__ == '__main__':
     else:
         widths = list(numpy.arange(wstart, wstop, wstep))
 
-    if use_default_sep:
-        seps = None
-    else:
-        seps = list(numpy.arange(sstart, sstop, sstep))
-
-    rval = build_fc_files_w2(arguments[0], metallist, condlist, widths, seps, outfile, tolerance, verbose)
+    rval = build_fc_files_w1n(arguments[0], metallist, condlist, widths, outfile, tolerance, verbose)
     sys.exit(rval)
 

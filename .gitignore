@@ -10,3 +10,4 @@
 *.magicrc
 __pycache__
 archive
+.venv

@@ -1,4 +1,4 @@
-# capiche:  A system for analyzing foundry metal stackups using FasterCap
+# capiche: A system for analyzing foundry metal stackups using FasterCap
 
 - Author: Tim Edwards
 - Initial version: January 6, 2023
@@ -17,29 +17,66 @@
 ## Requirements:
 
 - python3
-  - with packages numpy, scipy, and matplotlib
-- [FasterCap](https://github.com/ediloren/FasterCap)
-  - [LinAlgebra](https://github.com/ediloren/LinAlgebra)
+- [uv](https://docs.astral.sh/uv/)
+- [FasterCap](https://github.com/ediloren/FasterCap) or [FasterCap](https://github.com/martinjankoehler/FasterCap) (updates)
+  - [LinAlgebra](https://github.com/ediloren/LinAlgebra) or [LinAlgebra](https://github.com/martinjankoehler/LinAlgebra) (updates)
   - [Geometry](https://github.com/ediloren/Geometry)
 - [magic](https://github.com/RTimothyEdwards/magic)
-- [open_pdks](https://github.com/RTimothyEdwards/open_pdks) or [volare](https://github.com/efabless/volare) (installed for sky130 and/or gf180mcu processes)
+- [open_pdks](https://github.com/RTimothyEdwards/open_pdks) or [ciel](https://github.com/fossi-foundation/ciel) (installed for sky130, gf180mcu and/or ihp-sg13g2 processes)
+
+## Setup:
+
+### Using uv
+
+You can run capiche directly using uv:
+
+```
+uv run capiche
+```
+
+Or you can install capiche in a virtual environment:
+
+```
+uv venv
+source .venv/bin/activate
+uv pip install -e .
+```
+
+After which you can just execute `capiche`.
+To deactivate the virtual environment, run `deactivate`.
+
+## Using pip
+
+Create a virtual environment, enable it, and install capiche:
+
+```
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -e .
+```
+
+After which you can just execute `capiche`.
+To deactivate the virtual environment, run `deactivate`.
 
 ## Usage:
 
-	./capiche.py  sky130A/metal_stack_sky130A.py
-	./capiche.py  gf180mcuD/metal_stack_gf180mcuD.py
+```
+capiche sky130A/metal_stack_sky130A.py
+capiche gf180mcuD/metal_stack_gf180mcuD.py
+capiche ihp-sg13g2/metal_stack_ihp-sg13g2.py
+```
 
-> [!NOTE]  
+> [!NOTE]
 > If FasterCap isn't in the standard execution path, set the environment
 variable `FASTERCAP_EXEC` to the full path of FasterCap.
 
-> [!NOTE]  
+> [!NOTE]
 > If magic isn't in the standard execution path, set the environment
 variable `MAGIC_EXEC` to the full path of magic.
 
-> [!NOTE]  
+> [!NOTE]
 > If `PDK_ROOT` is not set and the PDK is not installed in the default `/usr/local/share/` or commonly
-used `/usr/share/` or `~/.volare` directories, then pass the location of the PDK `.magicrc`
+used `/usr/share/` or `~/.ciel` or `~/.volare` directories, then pass the location of the PDK `.magicrc`
 startup file as the 2nd argument to `compute_coefficients.py` (see the
 open_pdks installation instructions for more information).
 
@@ -263,19 +300,19 @@ This variable is used to map names used in Capiche to layer names used in magic.
 
 This variable is used to set the extract style in magic.
 
-	magicplanes['<layer_name>'] = '<TODO>'
+	magicplanes['<layer_name>'] = '<plane>'
 
-TODO
+This variable is used to set the planes in magic.
 
-	magicaliases['<layer_name>'] = '<TODO>'
+	magicaliases['<layer_name>'] = '<alias>'
 
-TODO
+This variable is used to set the aliases for layer groups.
 
-	magicstyles['<layer_name>'] = '<TODO>'
+	magicstyles['<layer_name>'] = '<style>'
 
-TODO
+This variable is used to set the style for each magic type.
 
-> [!NOTE]  
+> [!NOTE]
 > Capiche skips the simulation if `poly` is in the name of the metal (conductor) layer and `diff` is in the name of the diffusion layer, since poly to diff is a transistor gate and not parasitic.
 > In the future it may make sense to add an option to the input file whether a layer is `poly` or `diff`.
 
