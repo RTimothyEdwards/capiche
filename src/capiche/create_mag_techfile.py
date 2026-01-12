@@ -77,13 +77,14 @@ def create_mag_techfile(stackupfile, metals, substrates, areacap, fringe, sidewa
     # This is the first layer in the stackup
     substrate_name = substrates[0]
 
-    print(metals)
-    print(substrates)
-    print(areacap)
-    print(fringe)
-    print(sidewall)
-    print(fringeshield)
-    print(fringepartial)
+    if verbose:
+        print(f"metals: {metals}")
+        print(f"substrates: {substrates}")
+        print(f"areacap: {areacap}")
+        print(f"fringe: {fringe}")
+        print(f"sidewall: {sidewall}")
+        print(f"fringeshield: {fringeshield}")
+        print(f"fringepartial: {fringepartial}")
 
     """
     TODO: how to handle ndiff,mvndiff->allactivenonfet?
@@ -103,26 +104,29 @@ def create_mag_techfile(stackupfile, metals, substrates, areacap, fringe, sidewa
         
         layer_or_alias = alias if alias != None else layer
         
-        print(layer)
-        print(plane)
-        print(alias)
+        if verbose:
+            print("----------")
+            print(f"layer: {layer}")
+            print(f"plane: {plane}")
+            print(f"alias: {alias}")
+
+        ext_data += f"# {metal}\n"
 
         # Sanity check
         if not sidewall:
-            print('Note:  No sidewalls calculated')
+            print('Note: No sidewalls calculated')
         else:
-            ext_data += f"""# {metal}
- defaultsidewall    {layer_or_alias} {plane} {sidewall[metal][0]:.3f} {sidewall[metal][1]:.3f}\n"""
+            ext_data += f""" defaultsidewall    {layer_or_alias} {plane} {sidewall[metal][0]:.3f} {sidewall[metal][1]:.3f}\n"""
 
-        ext_data += f"""# {metal}
- defaultareacap     {layer_or_alias} {plane} {areacap[metal+'+'+substrate_name]:.3f}
+        ext_data += f""" defaultareacap     {layer_or_alias} {plane} {areacap[metal+'+'+substrate_name]:.3f}
  defaultperimeter   {layer_or_alias} {plane} {fringe[metal+'+'+substrate_name]:.3f}\n\n"""
 
         for substrate in substrates:
             # Ignore transistor gates
             if 'diff' in substrate and 'poly' in metal:
                 continue
-            print(substrate)
+            if verbose:
+                print(f"substrate: {substrate}")
             
             subs_layer = magiclayers[substrate]
             subs_plane = magicplanes[substrate]
@@ -130,9 +134,10 @@ def create_mag_techfile(stackupfile, metals, substrates, areacap, fringe, sidewa
             
             subs_layer_or_alias = subs_alias if subs_alias != None else subs_layer
             
-            print(subs_layer)
-            print(subs_plane)
-            print(subs_alias)
+            if verbose:
+                print(f"subs_layer: {subs_layer}")
+                print(f"subs_plane: {subs_plane}")
+                print(f"subs_alias: {subs_alias}")
 
             ext_data += f"""# {metal}->{substrate}
  defaultoverlap     {layer_or_alias} {plane} {subs_layer_or_alias} {subs_plane}  {areacap[metal+'+'+substrate]:.3f}
@@ -143,7 +148,8 @@ def create_mag_techfile(stackupfile, metals, substrates, areacap, fringe, sidewa
             if metals.index(other_metal) >= metals.index(metal):
                 continue
         
-            print(substrate)
+            if verbose:
+                print(f"substrate: {substrate}")
             
             met_layer = magiclayers[other_metal]
             met_plane = magicplanes[other_metal]
@@ -151,9 +157,10 @@ def create_mag_techfile(stackupfile, metals, substrates, areacap, fringe, sidewa
             
             met_layer_or_alias = met_alias if met_alias != None else met_layer
             
-            print(met_layer)
-            print(met_plane)
-            print(met_alias)
+            if verbose:
+                print(f"met_layer: {met_layer}")
+                print(f"met_plane: {met_plane}")
+                print(f"met_alias: {met_alias}")
 
             ext_data += f"""# {metal}->{other_metal}
  defaultoverlap     {layer_or_alias} {plane} {met_layer_or_alias} {met_plane} {areacap[metal+'+'+other_metal]:.3f}
@@ -162,9 +169,9 @@ def create_mag_techfile(stackupfile, metals, substrates, areacap, fringe, sidewa
 
 
 
-    print(ext_data)
+    print(f"magic extraction:\n{ext_data}")
 
-    # TODO generate magic tech file
+    # Generate magic tech file
     if True:
         with open(os.path.join(process, 'magic', f'{process}.tech'), 'w') as magictech_file:
             magictech_file.write(f"""tech

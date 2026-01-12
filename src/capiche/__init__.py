@@ -4,11 +4,9 @@
 
 import argparse
 
-from compute_coefficients import compute_coefficients
+from .compute_coefficients import compute_coefficients
 
-
-if __name__ == '__main__':
-
+def main() -> None:
     parser = argparse.ArgumentParser(
         prog='capiche',
         description='A system for analyzing foundry metal stackups using FasterCap',
@@ -18,9 +16,9 @@ if __name__ == '__main__':
     parser.add_argument('stack_def_file', type=str, help='Stack definition file')
     parser.add_argument('magic_startup_file', type=str, nargs='?', help="Instead of using the auto-generated magic startup file, use the provided one")
     
-    parser.add_argument('-noshield', action='store_false', help='Do not run fringe shield simulations')
-    parser.add_argument('-nopartial', action='store_false', help='Do not run partial fringe simulations')
-    parser.add_argument('-nosidewall', action='store_false', help='Do not run sidewall simulations')
+    parser.add_argument('-noshield', action='store_true', help='Do not run fringe shield simulations')
+    parser.add_argument('-nopartial', action='store_true', help='Do not run partial fringe simulations')
+    parser.add_argument('-nosidewall', action='store_true', help='Do not run sidewall simulations')
     
     parser.add_argument('-verbose', type=int, default=0, help='Diagnostic level')
     
@@ -32,3 +30,6 @@ if __name__ == '__main__':
 
     # Exit
     sys.exit(0)
+
+if __name__ == '__main__':
+    main()

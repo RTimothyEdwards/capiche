@@ -15,7 +15,7 @@ import numpy
 import subprocess
 
 # Local files
-from ordered_stack import ordered_stack
+from .ordered_stack import ordered_stack
 
 def calc_parallel(stackupfile, outfile, verbose):
     #--------------------------------------------------------------

@@ -17,8 +17,8 @@ import numpy
 import subprocess
 
 # Local files
-from ordered_stack import ordered_stack
-from generate_geometry import generate_two_offset_wire_file
+from .ordered_stack import ordered_stack
+from .generate_geometry import generate_two_offset_wire_file
 
 #--------------------------------------------------------------
 # Usage statement
@@ -232,11 +232,11 @@ def build_fc_files_w2o(stackupfile, metal1list, metal2list, widths1, widths2, se
             for line in proc.stdout.splitlines():
                 if verbose > 1:
                     print(line)
-                if 'g1_' in line:
+                if line.startswith('g1_'):
                     g1line = line.split()
                     g00 = float(g1line[1])
                     g01 = float(g1line[2])
-                elif 'g2_' in line:
+                elif line.startswith('g2_'):
                     g2line = line.split()
                     g10 = float(g2line[1])
                     g11 = float(g2line[2])
