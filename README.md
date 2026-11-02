@@ -704,21 +704,77 @@ imported and called from `compute_coefficients.py`
 	    Output:  See explanation of the build_mag_files_w2() routine above.
 	    Description:  See explanation of build_mag_files_w2() routine above.
 
+- `build_fc_files_c3d.py <stack_def_file> [options]`
+
+	    Where:
+		<stack_def_file> is the python script with the metal stack definition.
+	    And where [options] may be one or more of:
+		-metals=<metal>[,...]     (restrict wire type to one or more metals)
+		-conductors=<cond>[,...]  (restrict reference conductor types;
+						default is the first substrate)
+		-width=<value>            (wire width in microns;  default
+						10 * minimum width)
+		-lengths=<value>[,...]    (wire lengths in microns;  default
+						scales with the fringe halo)
+		-hole=<value>             (ring hole size in microns;  default
+						scales with the fringe halo)
+		-margin=<value>           (simulation border in microns;  default
+						scales with the fringe halo)
+		-trunc=<value>            (truncate the dielectric stack this far
+						above the wire top;  default
+						2 * wire thickness;  0 keeps the
+						full stack)
+		-noconcave                (skip the bend simulations)
+		-ring                     (also run ring simulations as a
+						concave corner cross-check)
+		-tol[erance]=<value>      (FasterCap tolerance;  default 0.001)
+		-timeout=<value>          (FasterCap timeout in seconds)
+		-file=<name>              (output filename for results;  default
+						<process>/analysis/corner3d/results.txt)
+		-verbose=<level>	  (level of diagnostic output)
+
+	    Output:  A results file with the raw 3D capacitance values, the
+		length-sweep fit, the convex and concave corner capacitances
+		(in aF), and (when <process>/analysis/coefficients.txt exists)
+		the corner values expressed as the dimensionless factor
+		k = corner * mult / edgecap used by magic's "extract do corners"
+		option (ExtCornerFactor).
+
+	    Description:  Unlike the other build_fc_files_ scripts, which run
+		2D cross-section simulations, this script runs full 3D
+		FasterCap simulations to measure the fringe capacitance at
+		the corners of a wire, which cannot be obtained from 2D
+		cross-sections.  A rectangular wire of fixed width is
+		simulated at several lengths;  capacitance is linear in
+		length, the slope giving the per-length (area + edge fringe)
+		contribution and the intercept giving the two end edges plus
+		four convex corners.  An L-shaped (bent) wire, which has the
+		same area and perimeter as a straight wire but one extra
+		convex and one extra concave corner, isolates the concave
+		corner value by comparison against the straight wire.
+		Sidewall and conformal dielectrics are planarized (kept at
+		the thickness they have away from the metal), and the area
+		and edge terms subtracted from the 3D results are computed
+		from the same simplified geometry, so that the corner
+		residual is self-consistent.  Note that the 3D simulations
+		are expensive for layer pairs with a large fringe halo (a
+		small fringe multiplier):  each metal over the substrate is
+		affordable for the lowest metals, while the upper metals are
+		better simulated over a lower metal plane, which also spans
+		a wide range of multiplier values for testing whether the
+		corner factor k is constant and scales as 1 / mult.
+
 # Work to do:
 
 Capiche is a work in progress.
 
-1. Put new analytic expressions into magic (tanh, arctan models)
-2. Add command in magic to change the halo for parasitic capacitances
-    on the command-line.
-3. Evaluate and refine models in magic, especially for change in
+1. Evaluate and refine models in magic, especially for change in
     capacitance vs. wire width (which is currently ignored by
     magic completely;  need to understand the error bound of this
     approximation).
-4. Add analysis of coupling across a shield wire to a wire on the
+2. Add analysis of coupling across a shield wire to a wire on the
     other side (another thing that magic ignores).
-5. Refine sidewall coupling model to include variation with height
+3. Refine sidewall coupling model to include variation with height
     above substrate or shield plane.
-6. Add metal stackup for GF180MCU.
-7. Add a script to create a drawing of each geometry example for
+4. Add a script to create a drawing of each geometry example for
     reference.
