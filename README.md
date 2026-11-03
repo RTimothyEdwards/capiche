@@ -209,8 +209,23 @@ as much as the coefficient.
 A profile in `merge_extract.py` says how to read a PDK's file:  the results to
 use, any preprocessor condition whose lines use other results (`RERAM` in
 sky130), any variants with no results, and any names that differ from those in
-the results.  The profiles are `ihp-sg13g2`, `ihp-sg13cmos5l`, `sky130`, and
-`gf180mcu`.
+the results.
+
+The two target PDK repositories are:
+
+- <https://github.com/IHP-GmbH/IHP-Open-PDK>
+- <https://github.com/fossi-foundation/open-pdks>
+
+Known profiles and the target file in the repository are:
+
+| Profile | Target file |
+|---|---|
+| `ihp-sg13g2` | `ihp-sg13g2/libs.tech/magic/ihp-sg13g2-extract.tech` |
+| `ihp-sg13cmos5l` | `ihp-sg13cmos5l/libs.tech/magic/ihp-sg13cmos5l-extract.tech` |
+| `sky130` | `sky130/magic/sky130-extract.tech` (formerly `sky130.tech)` |
+| `gf180mcu` | `gf180mcu/magic/gf180mcu-extract.tech` (formerly `gf180mcu.tech)` |
+
+A new PDK or metal stack requires a new entry in PROFILES in the script.
 
 ## Input file format:
 
@@ -814,40 +829,6 @@ imported and called from `compute_coefficients.py`
 		a wide range of multiplier values for testing whether the
 		corner factor k is constant and scales as 1 / mult.
 
-## Associated scripts:
-
-```
-env PYTHONPATH=src python3 -m capiche.merge_extract <profile> <extract file>
-[--threshold <ratio>] [--write]
-```
-
-This script folds the results produced by capiche into an existing magic tech
-file for the PDK.  Only the numbers on existing coefficient lines change.  The type
-lists on those lines, which include those separating poly used as a device (gate
-poly, normally part of the device model and not a parasitic), are preserved, as are
-comments and any lines with no capiche result, such as those for non-interconnect
-layers.  The `<profile>` is set to understand the conventions of the existing open
-PDKs, including "ifdef" blocks that allow multiple variants to be recorded in the
-same tech file template.  The target can be an all-in-one tech file or a section of
-a tech file that is included within an encompassing tech file.
-
-The two target PDK repositories are:
-
-- <https://github.com/IHP-GmbH/IHP-Open-PDK>
-- <https://github.com/fossi-foundation/open-pdks>
-
-Known profiles and the target file in the repository are:
-
-| Profile | Target file |
-|---|---|
-| `ihp-sg13g2` | `ihp-sg13g2/libs.tech/magic/ihp-sg13g2-extract.tech` |
-| `ihp-sg13cmos5l` | `ihp-sg13cmos5l/libs.tech/magic/ihp-sg13cmos5l-extract.tech` |
-| `sky130` | `sky130/magic/sky130-extract.tech` (formerly `sky130.tech)` |
-| `gf180mcu` | `gf180mcu/magic/gf180mcu-extract.tech` (formerly `gf180mcu.tech)` |
-
-Without `--write`, a report of the changes is printed and the tech file is not
-overwritten.  A new PDK or metal stack requires a new entry in PROFILES in the
-script.
 
 ## Work to do:
 
