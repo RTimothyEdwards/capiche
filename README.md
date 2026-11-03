@@ -12,6 +12,18 @@
   - **January 29, 2023:**  Additional errors in FasterCap intput
     files based on feedback from the FasterCap developer.
   - **December 2024:**  Automatically generate tech file for magic - Leo
+  - **November 2026:**  2D simulations now use a direct solver
+    (`src/capiche/solve2d.py`) instead of FasterCap, because FasterCap can
+    stop on an unconverged result for two closely spaced wires, which
+    made the sidewall coefficients wrong by up to a factor of two.  Set
+    the environment variable `CAPICHE_SOLVER=fastercap` to use FasterCap.
+    FasterCap is still required for the 3D corner simulations.  Also
+    corrected the dielectric placement in the input files for conformal
+    layers, and the sidewall dielectric thickness over a metal used as
+    the reference plane, which was missing the nitride over poly in sky130.
+    All previous results should be regenerated.
+    Added optional `linebias` and `sidewalloverride` to the stack
+    description, and high and low corners for sky130A and sky130B.
 
 
 ## Requirements:
@@ -92,10 +104,9 @@ and generate plots of the FasterCap results vs. results extracted
 using the program [magic](https://github.com/RTimothyEdwards/magic)
 and the analytic expressions computed using the calculated coefficients.
 
-[^1]: Around 12 hours on a modern 16-core processor, e.g., Intel core-i9
+[^1]: From a few minutes to about 20 minutes, depending on the stackup.
   Results are saved, so that subsequent runs will not repeat the
-  FasterCap runs if the output files exist.  Most of the time is
-  spent running FasterCap.
+  simulations if the output files exist.
 
 
 Most output is in the form of capacitance tables and SVG format plots.
@@ -291,6 +302,23 @@ This variable is used to declare the minimum width and minimum
 space (in micron units) for each metal layer.  It is used
 when Capiche is automatically selecting the range of material
 widths and spacings to simulate.
+
+	linebias['<layer_name>'] = <bias>
+
+This optional variable is used to describe a process corner in which
+the manufactured lines differ from the drawn lines.  `<bias>` is the
+manufactured width minus the drawn width, in microns.  Line centers
+stay in place, so the spacing changes by the opposite amount.  All
+widths and spacings in the results and all coefficients still refer
+to the drawn layout, which is what magic measures.
+
+	sidewalloverride['<layer_name>'] = [<multiplier>, <offset>]
+
+This optional variable replaces the sidewall coefficients found from
+the solver for a layer, for use when the foundry data shows a coupling
+capacitance that the stack description does not capture.  The solver
+results are still generated and plotted against the values from magic,
+so the plot for that layer shows the difference between them.
 
 	magiclayers['<layer_name>'] = '<paint_type>'
 

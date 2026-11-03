@@ -54,16 +54,26 @@ def ordered_stack(substrate, metals, layers, verbose=0):
     pstack.append([lname, 'd', None, lheight, lheight, lheight, 0.0, 0])
     yref = lheight
 
-    # If the reference plane conductor is a metal and the metal has a
-    # conformal dielectric, then add the dielectric boundary above the
-    # conductor.
+    # If the reference plane conductor is a metal, then add the boundary
+    # of each dielectric formed on top of the conductor.  This may be a
+    # conformal dielectric or a sidewall dielectric with thickness, and
+    # one may be formed on another.  Layers are listed bottom to top, so
+    # a dielectric always follows the layer it is associated with.
 
     if layer[0] == 'm':
+        associated = [substrate]
         for lname, layer in layers.items():
-            if layer[0] == 'c' and layer[5] == substrate:
+            if layer[0] == 'c' and layer[5] in associated:
+                associated.append(lname)
+            elif layer[0] == 's' and layer[4] in associated:
+                associated.append(lname)
+            else:
+                continue
+
+            # A sidewall dielectric may have no thickness over the metal
+            if layer[2] > 0:
                 yref += layer[2]
                 pstack.append([lname, 'k', None, yref, yref, yref, 0.0, layer[1]])
-                break
 
     # Work from bottom to top of the stack.  Stop when there are no more
     # metals.  This is inefficient, but the metal stack is not large.

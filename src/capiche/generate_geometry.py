@@ -115,7 +115,9 @@ def generate_one_wire_file(filename, conductor, metal, width, pstack):
                             # Check for sidewall dielectrics and break into additional
                             # segments if needed.
                             xext = halfwidth
-                            if sidewall_dielectric:
+                            if top_dielectric:
+                                xext += top_dielectric[6]
+                            elif sidewall_dielectric:
                                 xext += sidewall_dielectric[6]
 
                             # Add new entry for the dielectric under the metal wire
@@ -249,20 +251,18 @@ def generate_one_wire_file(filename, conductor, metal, width, pstack):
                     # Choose reference Y value that is below the metal
                     wcyspec = "{:.4f}".format(wirey - 1.0)
                     wtext = '_wire '
-                    dtext = ''
                 else:
                     wcyspec = "{:.4f}".format(wcy)
                     wtext = ' '
-                    dtext = ' -'
 
                 wyspec = "{:.4f}".format(wirey)
 
                 print('* ' + layer[0] + ' to ' + layer_above[0], file=ofile)
-                print('D k_conformal_' + layer[0] + wtext + kvalue + ' ' + kabove + ' 0.0 ' + wyspec + ' 0.0 ' + wcyspec + dtext, file=ofile)
+                print('D k_conformal_' + layer[0] + wtext + kvalue + ' ' + kabove + ' 0.0 ' + wyspec + ' 0.0 ' + wcyspec, file=ofile)
 
                 if dheight == 0:
                     if layer[7] != dielectric_below[7]:
-                        print('D k_conformal_' + layer[0] + '_bottom ' + kvalue + ' ' + kbelow + ' 0.0 ' + wyspec + ' 0.0 ' + wcyspec + dtext, file=ofile)
+                        print('D k_conformal_' + layer[0] + '_bottom ' + kvalue + ' ' + kbelow + ' 0.0 ' + wyspec + ' 0.0 ' + wcyspec, file=ofile)
 
                 # If layer_below is a sidewall dielectric, then add its
                 # width.  If it is a metal, then the value will be zero
@@ -475,7 +475,9 @@ def generate_1wire_2plane_file(filename, substrate, conductor, metal, width, pst
                             # Check for sidewall dielectrics and break into additional
                             # segments if needed.
                             xext = halfwidth
-                            if sidewall_dielectric:
+                            if top_dielectric:
+                                xext += top_dielectric[6]
+                            elif sidewall_dielectric:
                                 xext += sidewall_dielectric[6]
 
                             # Add new entry for the dielectric under the metal wire
@@ -612,20 +614,18 @@ def generate_1wire_2plane_file(filename, substrate, conductor, metal, width, pst
                     # Choose reference Y value that is below the metal
                     wcyspec = "{:.4f}".format(wirey - 1.0)
                     wtext = '_wire '
-                    dtext = ''
                 else:
                     wcyspec = "{:.4f}".format(wcy)
                     wtext = ' '
-                    dtext = ' -'
 
                 wyspec = "{:.4f}".format(wirey)
 
                 print('* ' + layer[0] + ' to ' + layer_above[0], file=ofile)
-                print('D k_conformal_' + layer[0] + wtext + kvalue + ' ' + kabove + ' 0.0 ' + wyspec + ' 0.0 ' + wcyspec + dtext, file=ofile)
+                print('D k_conformal_' + layer[0] + wtext + kvalue + ' ' + kabove + ' 0.0 ' + wyspec + ' 0.0 ' + wcyspec, file=ofile)
 
                 if dheight == 0:
                     if layer[7] != dielectric_below[7]:
-                        print('D k_conformal_' + layer[0] + '_bottom ' + kvalue + ' ' + kbelow + ' 0.0 ' + wyspec + ' 0.0 ' + wcyspec + dtext, file=ofile)
+                        print('D k_conformal_' + layer[0] + '_bottom ' + kvalue + ' ' + kbelow + ' 0.0 ' + wyspec + ' 0.0 ' + wcyspec, file=ofile)
 
                 # If layer_below is a sidewall dielectric, then add its
                 # width.  If it is a metal, then the value will be zero
@@ -844,7 +844,9 @@ def generate_one_shielded_wire_file(filename, substrate, conductor, metal, width
                                 xext = halfwidth
                             else:
                                 xext = -spacing
-                            if sidewall_dielectric:
+                            if top_dielectric:
+                                xext += top_dielectric[6]
+                            elif sidewall_dielectric:
                                 xext += sidewall_dielectric[6]
 
                             # Add new entry for the dielectric under the metal wire
@@ -934,7 +936,7 @@ def generate_one_shielded_wire_file(filename, substrate, conductor, metal, width
                 print('D k_sidewall_' + layer[0] + '_left ' + kvalue + ' ' + kabove + ' ' + wcxspec + ' ' + wyspec + ' ' + wcxspec + ' ' + wcyspec, file=ofile)
                 print('D k_sidewall_' + layer[0] + '_right ' + kvalue + ' ' + kabove + ' ' + wcxspec + ' ' + wyspec + ' ' + wcxspec + ' ' + wcyspec, file=ofile)
                 if (layer[7] != dielectric_below[7]):
-                    print('D k_sidewall_' + layer[0] + '_bottom ' + kvalue + ' ' + kbelow + ' 0.0 ' + wyspec + ' 0.0 ' + wcyspec, file=ofile)
+                    print('D k_sidewall_' + layer[0] + '_bottom ' + kvalue + ' ' + kbelow + ' ' + wcxspec + ' ' + wyspec + ' ' + wcxspec + ' ' + wcyspec, file=ofile)
 
 
                 if layer_below[0] == conductor:
@@ -948,7 +950,7 @@ def generate_one_shielded_wire_file(filename, substrate, conductor, metal, width
                 wxn2spec = "{:.4f}".format(-wirex2)
                 wx1spec = "{:.4f}".format(wirex1)
                 wx2spec = "{:.4f}".format(wirex2)
-                wyspec = "{:.4f}".format(wheight)
+                wyspec = "{:.4f}".format(sheight if refmetal == conductor else wheight)
 
                 # Add new entries for the conformal dielectric segments
                 extra.append('')
@@ -1007,20 +1009,18 @@ def generate_one_shielded_wire_file(filename, substrate, conductor, metal, width
                     # Choose reference Y value that is below the metal
                     wcyspec = "{:.4f}".format(wirey - 1.0)
                     wtext = '_wire '
-                    dtext = ''
                 else:
                     wcyspec = "{:.4f}".format(centy)
                     wtext = ' '
-                    dtext = ' -'
 
                 wyspec = "{:.4f}".format(wirey)
 
                 print('* ' + layer[0] + ' to ' + layer_above[0], file=ofile)
-                print('D k_conformal_' + layer[0] + wtext + kvalue + ' ' + kabove + ' ' + wcxspec + ' ' + wyspec + ' ' + wcxspec + ' ' + wcyspec + dtext, file=ofile)
+                print('D k_conformal_' + layer[0] + wtext + kvalue + ' ' + kabove + ' ' + wcxspec + ' ' + wyspec + ' ' + wcxspec + ' ' + wcyspec, file=ofile)
 
                 if dheight == 0:
                     if layer[7] != dielectric_below[7]:
-                        print('D k_conformal_' + layer[0] + '_bottom ' + kvalue + ' ' + kbelow + ' 0.0 ' + wyspec + ' 0.0 ' + wcyspec + dtext, file=ofile)
+                        print('D k_conformal_' + layer[0] + '_bottom ' + kvalue + ' ' + kbelow + ' ' + wcxspec + ' ' + wyspec + ' ' + wcxspec + ' ' + wcyspec, file=ofile)
 
                 # If layer_below is a sidewall dielectric, then add its
                 # width.  If it is a metal, then the value will be zero
@@ -1267,7 +1267,9 @@ def generate_two_wire_file(filename, conductor, metal, width, spacing, pstack):
                             # Check for sidewall dielectrics and break into additional
                             # segments if needed.
                             xext = halfwidth
-                            if sidewall_dielectric:
+                            if top_dielectric:
+                                xext += top_dielectric[6]
+                            elif sidewall_dielectric:
                                 xext += sidewall_dielectric[6]
 
                             # Add new entry for the dielectric under the metal wire
@@ -1423,23 +1425,21 @@ def generate_two_wire_file(filename, conductor, metal, width, spacing, pstack):
                     wcyspec = "{:.4f}".format(wirey - 1.0)
                     ltext = '_left '
                     rtext = '_right '
-                    dtext = ''
                 else:
                     wcyspec = "{:.4f}".format(wcy)
                     ltext = ' '
                     rtext = ' '
-                    dtext = ' -'
 
                 wyspec = "{:.4f}".format(wirey)
 
                 print('* ' + layer[0] + ' to ' + layer_above[0], file=ofile)
-                print('D k_conformal_' + layer[0] + ltext + kvalue + ' ' + kabove + ' ' + wncxspec + ' ' + wyspec + ' ' + wncxspec + ' ' + wcyspec + dtext, file=ofile)
-                print('D k_conformal_' + layer[0] + rtext + kvalue + ' ' + kabove + ' ' + wcxspec + ' ' + wyspec + ' ' + wcxspec + ' ' + wcyspec + dtext, file=ofile)
+                print('D k_conformal_' + layer[0] + ltext + kvalue + ' ' + kabove + ' ' + wncxspec + ' ' + wyspec + ' ' + wncxspec + ' ' + wcyspec, file=ofile)
+                print('D k_conformal_' + layer[0] + rtext + kvalue + ' ' + kabove + ' ' + wcxspec + ' ' + wyspec + ' ' + wcxspec + ' ' + wcyspec, file=ofile)
 
                 if dheight == 0:
                     if layer[7] != dielectric_below[7]:
-                        print('D k_conformal_' + layer[0] + '_bottom ' + kvalue + ' ' + kbelow + ' ' + wncxspec + ' ' + wyspec + ' ' + wncxspec + ' ' + wcyspec + dtext, file=ofile)
-                        print('D k_conformal_' + layer[0] + '_bottom ' + kvalue + ' ' + kbelow + ' ' + wcxspec + ' ' + wyspec + ' ' + wcxspec + ' ' + wcyspec + dtext, file=ofile)
+                        print('D k_conformal_' + layer[0] + '_bottom ' + kvalue + ' ' + kbelow + ' ' + wncxspec + ' ' + wyspec + ' ' + wncxspec + ' ' + wcyspec, file=ofile)
+                        print('D k_conformal_' + layer[0] + '_bottom ' + kvalue + ' ' + kbelow + ' ' + wcxspec + ' ' + wyspec + ' ' + wcxspec + ' ' + wcyspec, file=ofile)
 
                 # If layer_below is a sidewall dielectric, then add its
                 # width.  If it is a metal, then the value will be zero
@@ -1671,7 +1671,9 @@ def generate_two_offset_wire_file(filename, substrate, conductor, cwidth, metal,
                                 xext = mhalfwidth
                             else:
                                 xext = chalfwidth
-                            if sidewall_dielectric:
+                            if top_dielectric:
+                                xext += top_dielectric[6]
+                            elif sidewall_dielectric:
                                 xext += sidewall_dielectric[6]
 
                             # Add new entry for the dielectric under the metal wire
@@ -1770,7 +1772,7 @@ def generate_two_offset_wire_file(filename, substrate, conductor, cwidth, metal,
                 print('D k_sidewall_' + layer[0] + '_left ' + kvalue + ' ' + kabove + ' ' + wcxspec + ' ' + wyspec + ' ' + wcxspec + ' ' + wcyspec, file=ofile)
                 print('D k_sidewall_' + layer[0] + '_right ' + kvalue + ' ' + kabove + ' ' + wcxspec + ' ' + wyspec + ' ' + wcxspec + ' ' + wcyspec, file=ofile)
                 if (layer[7] != dielectric_below[7]):
-                    print('D k_sidewall_' + layer[0] + '_bottom ' + kvalue + ' ' + kbelow + ' 0.0 ' + wyspec + ' 0.0 ' + wcyspec, file=ofile)
+                    print('D k_sidewall_' + layer[0] + '_bottom ' + kvalue + ' ' + kbelow + ' ' + wcxspec + ' ' + wyspec + ' ' + wcxspec + ' ' + wcyspec, file=ofile)
 
 
                 if refmetal == conductor:
@@ -1784,7 +1786,7 @@ def generate_two_offset_wire_file(filename, substrate, conductor, cwidth, metal,
                 wxn2spec = "{:.4f}".format(-wirex2)
                 wx1spec = "{:.4f}".format(wirex1)
                 wx2spec = "{:.4f}".format(wirex2)
-                wyspec = "{:.4f}".format(wheight)
+                wyspec = "{:.4f}".format(sheight if refmetal == conductor else wheight)
 
                 # Add new entries for the conformal dielectric segments
                 extra.append('')
@@ -1842,20 +1844,18 @@ def generate_two_offset_wire_file(filename, substrate, conductor, cwidth, metal,
                     # Choose reference Y value that is below the metal
                     wcyspec = "{:.4f}".format(wirey - 1.0)
                     wtext = '_wire '
-                    dtext = ''
                 else:
                     wcyspec = "{:.4f}".format(centy)
                     wtext = ' '
-                    dtext = ' -'
 
                 wyspec = "{:.4f}".format(wirey)
 
                 print('* ' + layer[0] + ' to ' + layer_above[0], file=ofile)
-                print('D k_conformal_' + layer[0] + wtext + kvalue + ' ' + kabove + ' ' + wcxspec + ' ' + wyspec + ' ' + wcxspec + ' ' + wcyspec + dtext, file=ofile)
+                print('D k_conformal_' + layer[0] + wtext + kvalue + ' ' + kabove + ' ' + wcxspec + ' ' + wyspec + ' ' + wcxspec + ' ' + wcyspec, file=ofile)
 
                 if dheight == 0:
                     if layer[7] != dielectric_below[7]:
-                        print('D k_conformal_' + layer[0] + '_bottom ' + kvalue + ' ' + kbelow + ' 0.0 ' + wyspec + ' 0.0 ' + wcyspec + dtext, file=ofile)
+                        print('D k_conformal_' + layer[0] + '_bottom ' + kvalue + ' ' + kbelow + ' ' + wcxspec + ' ' + wyspec + ' ' + wcxspec + ' ' + wcyspec, file=ofile)
 
                 # If layer_below is a sidewall dielectric, then add its
                 # width.  If it is a metal, then the value will be zero

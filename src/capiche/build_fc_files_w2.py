@@ -16,9 +16,9 @@
 import os
 import sys
 import numpy
-import subprocess
 
 # Local files
+from .solve2d import capacitance_matrix
 from .ordered_stack import ordered_stack
 from .generate_geometry import generate_two_wire_file
 
@@ -88,6 +88,11 @@ def build_fc_files_w2(stackupfile, metallist, condlist, widths, seps, outfile, t
     except:
         print('Error:  Metal stack does not define limits!')
         return 1
+
+    # Optional:  Difference between the manufactured and the drawn line width,
+    # by layer.  This is used to describe a process corner.  Widths and spacings
+    # keep their drawn values in the results.
+    linebias = locals.get('linebias', {})
 
     #--------------------------------------------------------------
     # Generate files
@@ -178,70 +183,28 @@ def build_fc_files_w2(stackupfile, metallist, condlist, widths, seps, outfile, t
                     wspec = "{:.2f}".format(width).replace('.', 'p')
                     filename = process + '/fastercap_files/w2/' + metal + '_' + conductor + '_w_' + wspec + '_s_' + sspec + '.lst'
                     spacing = separation + width
-                    generate_two_wire_file(filename, conductor, metal, width, spacing, pstack)
+                    generate_two_wire_file(filename, conductor, metal, width + linebias.get(metal, 0), spacing, pstack)
                     filelist.append(filename)
 
     #--------------------------------------------------------------
-    # Simulate with fastercap
+    # Simulate
     #--------------------------------------------------------------
 
     if tolerance == 0:
-        print('Tolerance set to zero;  skipping FasterCap run')
+        print('Tolerance set to zero;  skipping simulation')
         return 0
-
-    fastercapexec = os.getenv('FASTERCAP_EXEC')
-    if not fastercapexec:
-        fastercapexec = 'FasterCap'
 
     presults = []
 
     for file in filelist:
-        loctol = tolerance
-        print('Running FasterCap on input file ' + file)
-        done = False
-        while not done:
-            tolspec = "-a{:.3f}".format(loctol)
-            try:
-                proc = subprocess.run([fastercapexec, '-b', file, tolspec],
-			stdin = subprocess.DEVNULL,
-			stdout = subprocess.PIPE,
-			stderr = subprocess.PIPE,
-			universal_newlines = True,
-                	timeout = 30)
-            except subprocess.TimeoutExpired:
-                if loctol > 0.1:
-                    print('ERROR:  Failing with high tolerance;  bailing.')
-                    break
-                loctol *= 2
-                if verbose > 0:
-                    print('Trying again with tolerance = ' + '{:.3f}'.format(loctol))
-            else:
-                done = True
-                if loctol > 0.01:
-                    print('WARNING:  High tolerance value (' + tolspec + ') used.')
-
-        if proc.stdout:
-            if verbose > 1:
-                print('Diagnostic output from FasterCap:')
-            for line in proc.stdout.splitlines():
-                if verbose > 1:
-                    print(line)
-                if line.startswith('g1_'):
-                    g1line = line.split()
-                    g00 = float(g1line[1])
-                    g01 = float(g1line[2])
-                elif line.startswith('g2_'):
-                    g2line = line.split()
-                    g10 = float(g2line[1])
-                    g11 = float(g2line[2])
-
-        if proc.stderr:
-            print('Error message output from FasterCap:')
-            for line in proc.stderr.splitlines():
-                print(line)
-
-        if proc.returncode != 0:
-            print('ERROR:  FasterCap exited with status ' + str(proc.returncode))
+        print('Solving input file ' + file)
+        gmatrix = capacitance_matrix(file, tolerance, verbose)
+        done = (gmatrix is not None)
+        if done:
+            g00 = gmatrix[0][0]
+            g01 = gmatrix[0][1]
+            g10 = gmatrix[1][0]
+            g11 = gmatrix[1][1]
 
         if done:
             cdiag = (g00 + g11) / 2

@@ -2,6 +2,7 @@
 
 # Entry point for capiche
 
+import sys
 import argparse
 
 from .compute_coefficients import compute_coefficients

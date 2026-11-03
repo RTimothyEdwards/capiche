@@ -55,7 +55,7 @@ layers['iox']    = ['s', 3.9, 0, 0.006, 'poly']
 layers['spnit']  = ['s', 7.5, 0.121, 0.0431, 'iox']
 layers['psg']    = ['k', 3.9, 'fox']
 layers['li']     = ['m', 0.9361, 0.10, 'psg', 'lint']
-layers['lint']   = ['c', 7.3, 0.075, 0.075, 0.075, 'li']
+layers['lint']   = ['c', 7.3, 0.075, 0.0608, 0.075, 'li']
 layers['nild2']  = ['k', 4.05, 'lint']
 layers['m1']     = ['m', 1.3761, 0.36, 'nild2', 'nild3']
 layers['nild3c'] = ['s', 3.5, 0, 0.03, 'm1']
@@ -69,7 +69,7 @@ layers['m4']     = ['m', 4.0211, 0.845, 'nild5', 'nild6']
 layers['nild6']  = ['k', 4.0, 'nild5']
 layers['m5']     = ['m', 5.3711, 1.26, 'nild6', 'topox']
 layers['topox']  = ['s', 3.9, 0.09, 0.07, 'm5'] 
-layers['topnit'] = ['c', 7.5, 0.54, 0.3777, 0.4223, 'topox']
+layers['topnit'] = ['c', 7.5, 0.54, 0.4219, 0.3777, 'topox']
 layers['air']    = ['k', 3.0, 'topnit']
 
 #
@@ -100,6 +100,18 @@ platecap['m2']   = [ 17.50,  17.50,  20.8,  20.7 ]
 platecap['m3']   = [ 12.37,  12.37,  14.2,  14.2 ]
 platecap['m4']   = [  8.42,   8.42,  9.41,   9.39]
 platecap['m5']   = [  6.32,   6.32,  6.88,   6.87]
+
+#
+# Sidewall coefficients that replace the solver's result.  These are fits to
+# the coupling values at or below 2um spacing in parameters/typical.spice in the
+# SPICE models.  Near minimum pitch, those values are well below what a solid
+# dielectric gives.
+
+sidewalloverride = {}
+sidewalloverride['m1'] = [45.56, 0.268]
+sidewalloverride['m2'] = [50.04, 0.308]
+sidewalloverride['m3'] = [84.00, 0.488]
+sidewalloverride['m4'] = [94.30, 0.579]
 
 #
 # Define the relationship between metal layers in this file

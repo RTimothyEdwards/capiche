@@ -405,6 +405,40 @@ def compute_sidewall(process, metals):
     return sidewall
     
 #-------------------------------------------------------------------------
+# Fit y = a + b * (2/pi) * atan(c * (x + d)).  This has local minima, so try
+# a range of starting values for the slope and keep the best fit.
+# Returns the fitted values (a, b, c, d) with y in the units given, or None.
+#-------------------------------------------------------------------------
+
+def fit_atan(xdata, ydata):
+
+    def func(x, a, b, c, d):
+        return a + b * 0.6366 * numpy.arctan(c * (x + d))
+
+    # Keep the values to be fit near unity
+    xvals = numpy.array(xdata)
+    scale = max(abs(y) for y in ydata)
+    yvals = numpy.array(ydata) / scale
+
+    best = None
+    bestresidual = None
+    for seed in [0.1, 0.3, 1.0, 3.0]:
+        p0 = [yvals[0], yvals[-1] - yvals[0], seed, 0]
+        try:
+            params, _ = scipy.optimize.curve_fit(func, xvals, yvals, p0=p0, maxfev=10000)
+        except RuntimeError:
+            continue
+        residual = numpy.sum((func(xvals, *params) - yvals) ** 2)
+        if best is None or residual < bestresidual:
+            best = params
+            bestresidual = residual
+
+    if best is None:
+        return None
+
+    return (best[0] * scale, best[1] * scale, best[2], best[3])
+
+#-------------------------------------------------------------------------
 # Get coefficients E and F (with curve fitting)
 #-------------------------------------------------------------------------
 
@@ -454,22 +488,14 @@ def compute_fringeshield(process, metals, limits, substrates, areacap, fringe10)
                     xdata.append(float(tokens[3]))
                     ydata.append(float(tokens[4]))
 
-            # Use scipy least_squares to do a nonlinear curve fit to
-            # y = (2/pi) * atan(e * (x + f))
+            # Do a nonlinear curve fit to y = a + b * (2/pi) * atan(e * (x + f))
 
-            def func2(x, a, b, c, d):
-                return a + b * 0.6366 * numpy.arctan(c * (x + d))
-
-            try:
-                p0 = [ydata[0], ydata[-1] - ydata[0], 1, 0]
-                params, _ = scipy.optimize.curve_fit(func2, xdata, ydata, p0=p0)
-            except:
-                # Warning:  This works around an issue with running curve fitting that
-                # needs to be investigated.
+            params = fit_atan(xdata, ydata)
+            if params is None:
+                print('Warning:  No fit for fringe shield of ' + metal + ' over ' + conductor)
                 fringeshield[metal + '+' + conductor] = (0, 0)
             else:
                 # Save results.  Value E is unitless and F is in microns.
-                # fringeshield[metal + '+' + conductor] = (params[0], params[1])
                 fringeshield[metal + '+' + conductor] = (params[2], params[3])
 
     return fringeshield
@@ -520,18 +546,17 @@ def compute_fringepartial(process, metals, limits, areacap, fringe):
             # for y in ycdata:
             #     ydata.append((y - platecap - totfringe) / totfringe)
 
-            # Use scipy least_squares to do a nonlinear curve fit to y = 0.6366 * atan(g * (x + h))
-            def func3(x, a, b, c, d):
-                return a + b * 0.6366 * numpy.arctan(c * (x + d))
+            # Do a nonlinear curve fit to y = a + b * (2/pi) * atan(g * (x + h)).
+            # The first two parameters represent the constant area cap and fringe
+            # on the left-hand side of the wire.
 
-            p0 = [ycdata[0], ycdata[-1] - ycdata[0], 1, 0]
-            # params, _ = scipy.optimize.curve_fit(func3, xdata, ydata, p0=p0)
-            params, _ = scipy.optimize.curve_fit(func3, xdata, ycdata, p0=p0)
-
-            # Save results.  Value G is unitless and H is in microns.
-            # The first two parameters represent the constant area cap and fringe on the
-            # left-hand side of the wire.
-            fringepartial[metal + '+' + conductor] = (params[2], params[3])
+            params = fit_atan(xdata, ycdata)
+            if params is None:
+                print('Warning:  No fit for partial fringe of ' + metal + ' to ' + conductor)
+                fringepartial[metal + '+' + conductor] = (0, 0)
+            else:
+                # Save results.  Value G is unitless and H is in microns.
+                fringepartial[metal + '+' + conductor] = (params[2], params[3])
 
     return fringepartial
     
@@ -1382,6 +1407,10 @@ def compute_coefficients(stack_def_file, magic_startup_file=None, doshield=True,
 
     if dosidewall:
         sidewall = compute_sidewall(process, metals)
+        # The stack description may replace the solver's result for a layer.
+        for metal, coeffs in stackupfile_dict.get('sidewalloverride', {}).items():
+            print('Overriding sidewall for ' + metal + ':  solver {:.3f} {:.3f}, using {:.3f} {:.3f}'.format(*sidewall[metal], *coeffs))
+            sidewall[metal] = tuple(coeffs)
     if doshield:
         fringeshield = compute_fringeshield(process, metals, limits, substrates, areacap, fringe10)
     if dopartial:
@@ -1396,7 +1425,17 @@ def compute_coefficients(stack_def_file, magic_startup_file=None, doshield=True,
     print_coefficients(metals, substrates, areacap, fringe, sidewall, fringeshield, fringepartial)
     save_coefficients(metals, substrates, areacap, fringe, sidewall, fringeshield, fringepartial, process + '/analysis/coefficients.txt')
 
-    if dosidewall and doshield and dopartial:
+    # A tech file can be generated only if the stack definition describes the
+    # magic planes.  Without that and without a magic startup file provided on
+    # the command line, results cannot be validated against magic.
+
+    canmaketech = ('magicplanes' in stackupfile_dict)
+
+    if not canmaketech:
+        print('Metal stack does not define magicplanes:  No magic tech file generated.')
+        startupfile = magic_startup_file
+
+    if canmaketech and dosidewall and doshield and dopartial:
         # Make sure the magic directory exists
         os.makedirs(os.path.join(process, 'magic'), exist_ok=True)
 
@@ -1432,7 +1471,7 @@ set SUB VSUBS
 """)
     
         create_mag_techfile(stackupfile, metals, substrates, areacap, fringe, sidewall, fringeshield, fringepartial, verbose)
-    else:
+    elif canmaketech:
         print("The magic techfile won't be generated because one of dosidewall, doshield or dopartial is false.")
     
     # Only run validation against magic if a magic startup file was specified on the

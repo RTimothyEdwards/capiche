@@ -59,7 +59,7 @@ layers['iox']    = ['s', 3.9, 0, 0.006, 'poly']
 layers['spnit']  = ['s', 7.5, 0.121, 0.0431, 'iox']
 layers['psg']    = ['k', 3.9, 'fox']
 layers['li']     = ['m', 0.9361, 0.10, 'psg', 'lint']
-layers['lint']   = ['c', 7.3, 0.075, 0.075, 0.075, 'li']
+layers['lint']   = ['c', 7.3, 0.075, 0.0608, 0.075, 'li']
 layers['nild2']  = ['k', 4.05, 'lint']
 layers['m1']     = ['m', 1.3761, 0.36, 'nild2', 'nild3']
 layers['nild3c'] = ['s', 3.5, 0, 0.03, 'm1']
@@ -73,7 +73,7 @@ layers['m4']     = ['m', 4.3161, 0.845, 'nild5', 'nild6']
 layers['nild6']  = ['k', 4.0, 'nild5']
 layers['m5']     = ['m', 5.6661, 1.26, 'nild6', 'topox']
 layers['topox']  = ['s', 3.9, 0.09, 0.07, 'm5'] 
-layers['topnit'] = ['c', 7.5, 0.54, 0.4223, 0.3777, 'topox']
+layers['topnit'] = ['c', 7.5, 0.54, 0.4219, 0.3777, 'topox']
 layers['air']    = ['k', 3.0, 'topnit']
 
 #
@@ -106,6 +106,18 @@ platecap['m4']   = [  8.57,   8.57,  9.32,   9.32]
 platecap['m5']   = [  6.46,   6.46,  6.88,   6.87]
 
 #
+# Sidewall coefficients that replace the solver's result.  These are fits to
+# the coupling values at or below 2um spacing in parameters/typical.spice in the
+# SPICE models.  Near minimum pitch, those values are well below what a solid
+# dielectric gives.
+
+sidewalloverride = {}
+sidewalloverride['m1'] = [45.56, 0.268]
+sidewalloverride['m2'] = [50.04, 0.308]
+sidewalloverride['m3'] = [84.00, 0.488]
+sidewalloverride['m4'] = [94.30, 0.579]
+
+#
 # Define the relationship between metal layers in this file
 # and layers in magic (for use with magic extraction)
 
@@ -121,3 +133,45 @@ magiclayers['m2'] = 'm2'
 magiclayers['m3'] = 'm3'
 magiclayers['m4'] = 'm4'
 magiclayers['m5'] = 'm5'
+
+# Optional - automatic tech file generation for magic
+
+magicplanes = {}
+magicplanes['subs'] = 'well'
+magicplanes['nwell'] = 'well'
+magicplanes['diff'] = 'active'
+magicplanes['mvdiff'] = 'active'
+magicplanes['poly'] = 'active'
+magicplanes['li'] = 'locali'
+magicplanes['m1'] = 'metal1'
+magicplanes['m2'] = 'metal2'
+magicplanes['m3'] = 'metal3'
+magicplanes['m4'] = 'metal4'
+magicplanes['m5'] = 'metal5'
+
+magicaliases = {}
+magicaliases['subs'] = None
+magicaliases['nwell'] = None
+magicaliases['diff'] = 'alldifflvnonfet'
+magicaliases['mvdiff'] = 'alldiffmvnonfet'
+magicaliases['poly'] = 'allpoly'
+magicaliases['li'] = 'allli'
+magicaliases['m1'] = 'allm1'
+magicaliases['m2'] = 'allm2'
+magicaliases['m3'] = 'allm3'
+magicaliases['m4'] = 'allm4'
+magicaliases['m5'] = 'allm5'
+
+magicstyles = {}
+magicstyles['subs'] = 'pwell'
+magicstyles['nwell'] = 'nwell'
+magicstyles['diff'] = 'ndiffusion'
+magicstyles['mvdiff'] = 'ndiffusion'
+magicstyles['poly'] = 'polysilicon'
+magicstyles['li'] = 'metal1'
+magicstyles['m1'] = 'metal2'
+magicstyles['m2'] = 'metal3'
+magicstyles['m3'] = 'metal4'
+magicstyles['m4'] = 'metal5'
+magicstyles['m5'] = 'metal6'
+

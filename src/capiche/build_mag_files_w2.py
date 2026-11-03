@@ -181,8 +181,8 @@ def build_mag_files_w2(stackupfile, startupscript, metallist, condlist, widths, 
             for separation in seps:
                 sspec = "{:.2f}".format(separation).replace('.', 'p')
                 for width in widths:
-                    xspec1 = "{:.2f}".format(separation / 2)
-                    xspec2 = "{:.2f}".format(separation / 2 + width)
+                    xspec1 = "{:.3f}".format(separation / 2)
+                    xspec2 = "{:.3f}".format(separation / 2 + width)
                     wspec = "{:.2f}".format(width).replace('.', 'p')
                     filename = metal + '_' + conductor + '_w_' + wspec + '_s_' + sspec + '.tcl'
                     with open(process + '/magic_files/w2/' + filename, 'w') as ofile:
