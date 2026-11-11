@@ -95,6 +95,10 @@ open_pdks installation instructions for more information).
 Add option `-verbose=1` for more output, or `-verbose=2` for considerably
 more output.
 
+Add option `-force` to rerun all simulations and magic validation runs,
+ignoring any results saved from an earlier run (see below).  This is
+needed after changing the metal stack file or the capiche code.
+
 This will run for a long time[^1], generating metal wire configurations
 and running them through FasterCap to generate coupling capacitance
 estimations for each geometry.  Once the data files containing all of
@@ -105,8 +109,9 @@ using the program [magic](https://github.com/RTimothyEdwards/magic)
 and the analytic expressions computed using the calculated coefficients.
 
 [^1]: From a few minutes to about 20 minutes, depending on the stackup.
-  Results are saved, so that subsequent runs will not repeat the
-  simulations if the output files exist.
+  Results are saved in `<pdk_name>/analysis/` and `<pdk_name>/validate/`,
+  so that subsequent runs will not repeat the simulations if the output
+  files exist.  Use `-force` to repeat them.
 
 
 Most output is in the form of capacitance tables and SVG format plots.
@@ -303,10 +308,13 @@ directly below the layer.  The `<K_value>` is the dielectric K constant.
 This is a conformal dielectric which is formed around a metal layer
 and forms a layer above and around the metal.  `<K_value>` is the
 dielectric K constant of the layer.  `<thick1>` is the thickness of
-the dielectric over metal, while `<thick2>` is the thickness of the
-dielectric where the metal is not present.  `<thick3>` is the sidewall
-thickness of the dielectric.  The `<reference>` layer is always a
-metal.
+the dielectric over metal, `<thick2>` is the sidewall thickness of
+the dielectric, and `<thick3>` is the thickness of the dielectric
+where the metal is not present.  The `<reference>` layer is the metal
+that the dielectric forms around, or a sidewall or conformal dielectric
+that is itself formed around a metal.  Several dielectrics may be
+stacked this way;  each one references the dielectric directly below
+it.
 
 	['s', <K_value>, <thick1>, <thick2>, <reference>]
 
@@ -315,7 +323,8 @@ but does not exist away from the metal.  `<thick1>` is the height
 of the layer above the metal, and may be zero if the dielectric is
 only on the metal sidewall and does not exist on top of the metal.
 `<thick2>` is the width of the dielectric from the metal sidewall
-outward.  The `<reference>` layer is always a metal.
+outward.  The `<reference>` layer is a metal, or a sidewall or conformal
+dielectric formed around a metal.
 
 	['m', <height>, <thick>, <ref_below>, <ref_above>]
 

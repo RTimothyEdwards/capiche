@@ -51,6 +51,7 @@
 
 import os
 import sys
+import shutil
 import time
 import numpy
 import datetime
@@ -1285,7 +1286,41 @@ def print_current_time(verbose):
 # Invoke compute_coefficients.py as an application
 #--------------------------------------------------------------
 
-def compute_coefficients(stack_def_file, magic_startup_file=None, doshield=True, dopartial=True, dosidewall=True, verbose=0):
+#-------------------------------------------------------------------------
+# remove_cached_results --
+#
+# Remove the saved simulation and magic validation results for the
+# analyses that are about to run, so that they are all regenerated.
+# Results for analyses that are turned off are kept.
+#
+# Results:
+#	None.
+#
+# Side effects:
+#	Deletes directories under <process>/analysis/ and
+#	<process>/validate/.
+#-------------------------------------------------------------------------
+
+def remove_cached_results(process, doshield, dopartial, dosidewall, verbose=0):
+    analyses = ['areacap', 'fringe']
+    if dosidewall:
+        analyses.append('sidewall')
+    if doshield:
+        analyses.append('fringeshield')
+    if dopartial:
+        analyses.append('fringepartial')
+
+    for topdir in ['analysis', 'validate']:
+        for analysis in analyses:
+            path = os.path.join(process, topdir, analysis)
+            if os.path.isdir(path):
+                if verbose > 0:
+                    print('Removing saved results in ' + path)
+                shutil.rmtree(path)
+
+#-------------------------------------------------------------------------
+
+def compute_coefficients(stack_def_file, magic_startup_file=None, doshield=True, dopartial=True, dosidewall=True, verbose=0, force=False):
 
     startupfile = magic_startup_file
 
@@ -1303,6 +1338,7 @@ def compute_coefficients(stack_def_file, magic_startup_file=None, doshield=True,
         print(f"doshield: {doshield}")
         print(f"dopartial: {dopartial}")
         print(f"dosidewall: {dosidewall}")
+        print(f"force: {force}")
 
     try:
         exec(open(stackupfile, 'r').read(), stackupfile_dict)
@@ -1370,6 +1406,9 @@ def compute_coefficients(stack_def_file, magic_startup_file=None, doshield=True,
                     startupfile = None
   
     metals, substrates = generate_layers(layers)
+
+    if force:
+        remove_cached_results(process, doshield, dopartial, dosidewall, verbose)
 
     tstart = time.time()
     if verbose > 0:

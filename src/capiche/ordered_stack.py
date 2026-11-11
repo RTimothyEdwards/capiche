@@ -33,6 +33,30 @@ import subprocess
 #	7.  layer dielectric constant (or 0 if a conductor)
 # --------------------------------------------------------
 
+#--------------------------------------------------------
+# find_coating --
+#
+# Find the sidewall or conformal dielectric formed on the
+# layer "refname" (a metal, or a sidewall or conformal
+# dielectric).  A sidewall dielectric takes precedence.
+#
+# Results:
+#	The name of the dielectric layer, or None if there
+#	is none.
+#
+# Side effects:
+#	None.
+#--------------------------------------------------------
+
+def find_coating(layers, refname):
+    for dname, dlayer in layers.items():
+        if dlayer[0] == 's' and dlayer[4] == refname:
+            return dname
+    for dname, dlayer in layers.items():
+        if dlayer[0] == 'c' and dlayer[5] == refname:
+            return dname
+    return None
+
 def ordered_stack(substrate, metals, layers, verbose=0):
     pstack = []		# An ordered list, not a dictionary
 
@@ -128,87 +152,57 @@ def ordered_stack(substrate, metals, layers, verbose=0):
 
             pstack.append([minmn, 'm', None, ybase, yref, yref, 0.0, 0])
 
-            # If there is a sidewall associated with the metal, then add it.
-            # If the sidewall vertical thickness is nonzero, then recast it
-            # as a conformal dielectric with height zero where there is no
-            # metal.
-            for sname, slayer in layers.items():
-                if slayer[0] == 's':
-                    if slayer[4] == minmn:
-                        wref += slayer[3]
-                        if slayer[2] == 0:
-                            pstack.append([sname, 's', minmn, ybase,
-					minmy, yref + slayer[2], wref, slayer[1]])
-                        else:
-                            pstack.append([sname, 'c', minmn, ybase,
-					minmy, yref + slayer[2], wref, slayer[1]])
-                        yref += slayer[2]
-                        break
-
-            # If there is a second sidewall associated with the first, then
-            # add it
-            for ssname, sslayer in layers.items():
-                if sslayer[0] == 's':
-                    if sslayer[4] == sname:
-                        wref += sslayer[3]
-                        pstack.append([ssname, 'c', minmn, ybase, minmy,
-				yref + sslayer[2], wref, sslayer[1]])
-                        yref += sslayer[2]
-                        break
-
-            # If there is a conformal dielectric associated with the sidewall,
-            # then add it.
-            for cname, clayer in layers.items():
-                if clayer[0] == 'c':
-                    if clayer[5] == sname:
-                        wref += clayer[3]
-                        pstack.append([cname, 'c', minmn, ybase,
-				minmy + clayer[4], yref + clayer[2], wref, clayer[1]])
-                        yref += clayer[2]
-                        ybase += clayer[2]
-                        break
-
-            # If there is a conformal dielectric associated with the metal,
-            # then add it.
-            for cname, clayer in layers.items():
-                if clayer[0] == 'c':
-                    if clayer[5] == minmn:
-                        wref += clayer[3]
-                        pstack.append([cname, 'c', minmn, ybase, minmy + clayer[4],
-				yref + clayer[2], wref, clayer[1]])
-                        yref += clayer[2]
-                        ybase += clayer[2]
-                        break
+            # Add the sidewall and conformal dielectrics formed around
+            # the metal.  Each one references either the metal or the
+            # sidewall or conformal dielectric directly below it, so
+            # follow the chain of references upward from the metal.
+            # A sidewall with zero vertical thickness is kept as a
+            # sidewall;  otherwise it is recast as a conformal dielectric
+            # with height zero where there is no metal.  All entries in
+            # the chain keep the metal base height as the bottom height,
+            # so that the top height with no metal present minus the
+            # bottom height is the total thickness of the chain away
+            # from the metal up to and including that layer.
+            fieldtop = minmy
+            refname = minmn
+            while True:
+                dname = find_coating(layers, refname)
+                if not dname:
+                    break
+                dlayer = layers[dname]
+                if dlayer[0] == 's':
+                    wref += dlayer[3]
+                    dtype = 's' if dlayer[2] == 0 else 'c'
+                    pstack.append([dname, dtype, minmn, minmy,
+				fieldtop, yref + dlayer[2], wref, dlayer[1]])
+                    yref += dlayer[2]
+                else:
+                    wref += dlayer[3]
+                    fieldtop += dlayer[4]
+                    pstack.append([dname, 'c', minmn, minmy,
+				fieldtop, yref + dlayer[2], wref, dlayer[1]])
+                    yref += dlayer[2]
+                    ybase += dlayer[2]
+                refname = dname
 
         else:
-            # If there is a conformal dielectric associated with the metal,
-            # then add it (as a simple dielectric).
-            for cname, clayer in layers.items():
-                if clayer[0] == 'c':
-                    if clayer[5] == minmn:
-                        # Add the height of the conformal dielectric to
-                        # the reference height.  The width of the layer
-                        # is not used because there's no metal here for it
-                        # to wrap around.
-                        yref += clayer[4]
-                        ybase += clayer[4]
-                        pstack.append([cname, 'k', minmn, ybase, yref, yref, 0.0, clayer[1]])
-                        break
-                    else:
-                        # Check if the referenced layer is a sidewall
-                        # dielectric associated with the metal.  If so,
-                        # treat it exactly like the above.
-                        matches = False
-                        for sname, slayer in layers.items():
-                            if slayer[0] == 's':
-                                if slayer[4] == minmn:
-                                    if clayer[5] == sname:
-                                        matches = True
-                                        break
-                        if matches:
-                            yref += clayer[4]
-                            pstack.append([cname, 'k', minmn, ybase, yref, yref, 0.0, clayer[1]])
-                            break
+            # The metal is not present, so each conformal dielectric in
+            # the chain formed around the metal becomes a simple
+            # dielectric with the thickness it has away from the metal.
+            # Sidewall dielectrics do not exist away from the metal, but
+            # a conformal dielectric may be formed on one.
+            refname = minmn
+            while True:
+                dname = find_coating(layers, refname)
+                if not dname:
+                    break
+                dlayer = layers[dname]
+                if dlayer[0] == 'c':
+                    yref += dlayer[4]
+                    ybase += dlayer[4]
+                    pstack.append([dname, 'k', minmn, ybase, yref, yref,
+				0.0, dlayer[1]])
+                refname = dname
 
     # Add the entry for "air" to the top.  Air is nominally K=1.0, but use the
     # specified value, which could be > 1 to represent a polyimide on top.

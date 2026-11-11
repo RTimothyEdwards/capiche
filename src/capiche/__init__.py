@@ -20,6 +20,7 @@ def main() -> None:
     parser.add_argument('-noshield', action='store_true', help='Do not run fringe shield simulations')
     parser.add_argument('-nopartial', action='store_true', help='Do not run partial fringe simulations')
     parser.add_argument('-nosidewall', action='store_true', help='Do not run sidewall simulations')
+    parser.add_argument('-force', action='store_true', help='Rerun all simulations, ignoring saved results')
     
     parser.add_argument('-verbose', type=int, default=0, help='Diagnostic level')
     
@@ -27,7 +28,7 @@ def main() -> None:
     args = parser.parse_args()
 
     # Compute the coefficients
-    compute_coefficients(args.stack_def_file, args.magic_startup_file, not args.noshield, not args.nopartial, not args.nosidewall, args.verbose)
+    compute_coefficients(args.stack_def_file, args.magic_startup_file, not args.noshield, not args.nopartial, not args.nosidewall, args.verbose, args.force)
 
     # Exit
     sys.exit(0)
